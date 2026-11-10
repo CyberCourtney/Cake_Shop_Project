@@ -1,0 +1,24 @@
+{
+  "name": "cake-shop",
+  "private": true,
+  "description": "Cake shop ordering and order-management system (npm workspaces root).",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend/shop",
+    "frontend/admin"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build -w backend && npm run build -w frontend/shop && npm run build -w frontend/admin",
+    "test": "npm run test -w shared -w backend",
+    "typecheck": "tsc -p shared && tsc -p backend && tsc -p frontend/shop && tsc -p frontend/admin",
+    "dev:db": "node scripts/local/dynamodb-local.mjs",
+    "dev:api": "tsx scripts/local/dev-api.ts",
+    "dev:shop": "npm run dev -w frontend/shop",
+    "dev:admin": "npm run dev -w frontend/admin"
+  }
+}

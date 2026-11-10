@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Messaging. SNS topic for internal new-order emails (the baker and the operator),
+  SNS topic for technical alerts, the notifier dead-letter queue, and (only when a custom
+  domain exists) the SES domain identity with DKIM/SPF/DMARC records. See decision D3.
+
+Parameters:
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  BusinessDisplayName:
+    Type: String
+    Description: >-
+      Shown on the topic and, without spaces, used as the topic name prefix. Changing it
+      in an existing environment replaces both topics, so every subscriber must re-confirm.
+  InternalNotificationEmails:
+    Type: CommaDelimitedList
+    Description: Up to 5 addresses that receive every new-order notification.
+  OpsAlertEmail:
+    Type: String
+  DomainName:
+    Type: String
+    Default: ""
+  HostedZoneId:
+    Type: String
+    Default: ""
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+  HasCustomDomain: !Not [!Equals [!Ref DomainName, ""]]
+  # CloudFormation has no loops, so there are five subscription "slots". Padding the list
+  # with empty entries (Join + Split) lets Select work however many addresses are given.
+  HasEmail1: !Not [!Equals [!Select [0, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]], ""]]
+  HasEmail2: !Not [!Equals [!Select [1, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]], ""]]
+  HasEmail3: !Not [!Equals [!Select [2, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]], ""]]
+  HasEmail4: !Not [!Equals [!Select [3, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]], ""]]
+  HasEmail5: !Not [!Equals [!Select [4, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]], ""]]
+
+Resources:
+  # ---------------------------------------------------------------------------
+  # Internal new-order notifications. Contains customer contact details, so it is
+  # encrypted with the AWS-managed SNS key (no cost). Only the notifier role may publish.
+  # ---------------------------------------------------------------------------
+  OrderNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !If
+        - IsProd
+        - !Sub ["${Prefix}OrderNotifications", { Prefix: !Join ["", !Split [" ", !Ref BusinessDisplayName]] }]
+        - !Sub ["${Prefix}OrderNotifications-${Environment}", { Prefix: !Join ["", !Split [" ", !Ref BusinessDisplayName]] }]
+      DisplayName: !Ref BusinessDisplayName
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: DataClassification
+          Value: personal
+
+  OrderTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref OrderNotificationTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: sns:Publish
+            Resource: !Ref OrderNotificationTopic
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  OrderSubscription1:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail1
+    Properties:
+      TopicArn: !Ref OrderNotificationTopic
+      Protocol: email
+      Endpoint: !Select [0, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]]
+  OrderSubscription2:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail2
+    Properties:
+      TopicArn: !Ref OrderNotificationTopic
+      Protocol: email
+      Endpoint: !Select [1, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]]
+  OrderSubscription3:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail3
+    Properties:
+      TopicArn: !Ref OrderNotificationTopic
+      Protocol: email
+      Endpoint: !Select [2, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]]
+  OrderSubscription4:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail4
+    Properties:
+      TopicArn: !Ref OrderNotificationTopic
+      Protocol: email
+      Endpoint: !Select [3, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]]
+  OrderSubscription5:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail5
+    Properties:
+      TopicArn: !Ref OrderNotificationTopic
+      Protocol: email
+      Endpoint: !Select [4, !Split [",", !Join [",", [!Join [",", !Ref InternalNotificationEmails], ",,,,"]]]]
+
+  # ---------------------------------------------------------------------------
+  # Technical alerts (alarms). Deliberately NOT KMS-encrypted: CloudWatch alarms cannot
+  # publish to a topic encrypted with the AWS-managed key, and alerts carry no personal data.
+  # ---------------------------------------------------------------------------
+  OpsAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ["${Prefix}OpsAlerts-${Environment}", { Prefix: !Join ["", !Split [" ", !Ref BusinessDisplayName]] }]
+      DisplayName: KVC ops alerts
+
+  OpsAlertTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref OpsAlertTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudWatchAlarmsFromThisAccount
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref OpsAlertTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  OpsAlertSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref OpsAlertTopic
+      Protocol: email
+      Endpoint: !Ref OpsAlertEmail
+
+  # ---------------------------------------------------------------------------
+  # Dead-letter queue for notifier stream records that still fail after retries.
+  # It receives record metadata (stream position), not the order itself.
+  # ---------------------------------------------------------------------------
+  NotifierDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-${Environment}-notifier-dlq"
+      SqsManagedSseEnabled: true
+      MessageRetentionPeriod: 1209600 # 14 days, the maximum
+
+  NotifierDlqPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref NotifierDlq
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "sqs:*"
+            Resource: !GetAtt NotifierDlq.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  # ---------------------------------------------------------------------------
+  # SES (customer email). Only created once a custom domain exists (decision D3).
+  # ---------------------------------------------------------------------------
+  SesConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Condition: HasCustomDomain
+    Properties:
+      Name: !Sub "${ProjectName}-${Environment}-customer-email"
+      DeliveryOptions:
+        TlsPolicy: OPTIONAL
+      ReputationOptions:
+        ReputationMetricsEnabled: true
+      SendingOptions:
+        SendingEnabled: true
+
+  SesBounceComplaintMetrics:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    Condition: HasCustomDomain
+    Properties:
+      ConfigurationSetName: !Ref SesConfigurationSet
+      EventDestination:
+        Name: cloudwatch-metrics
+        Enabled: true
+        MatchingEventTypes: [send, delivery, bounce, complaint, reject]
+        CloudWatchDestination:
+          DimensionConfigurations:
+            - DimensionName: ses-config-set
+              DimensionValueSource: messageTag
+              DefaultDimensionValue: customer-email
+
+  SesDomainIdentity:
+    Type: AWS::SES::EmailIdentity
+    Condition: HasCustomDomain
+    Properties:
+      EmailIdentity: !Ref DomainName
+      ConfigurationSetAttributes:
+        ConfigurationSetName: !Ref SesConfigurationSet
+      DkimSigningAttributes:
+        NextSigningKeyLength: RSA_2048_BIT
+      MailFromAttributes:
+        MailFromDomain: !Sub "mail.${DomainName}"
+        BehaviorOnMxFailure: USE_DEFAULT_VALUE
+
+  DkimRecord1:
+    Type: AWS::Route53::RecordSet
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt SesDomainIdentity.DkimDNSTokenName1
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords:
+        - !GetAtt SesDomainIdentity.DkimDNSTokenValue1
+  DkimRecord2:
+    Type: AWS::Route53::RecordSet
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt SesDomainIdentity.DkimDNSTokenName2
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords:
+        - !GetAtt SesDomainIdentity.DkimDNSTokenValue2
+  DkimRecord3:
+    Type: AWS::Route53::RecordSet
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt SesDomainIdentity.DkimDNSTokenName3
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords:
+        - !GetAtt SesDomainIdentity.DkimDNSTokenValue3
+
+  MailFromMxRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "mail.${DomainName}"
+      Type: MX
+      TTL: "1800"
+      ResourceRecords:
+        - !Sub "10 feedback-smtp.${AWS::Region}.amazonses.com"
+
+  MailFromSpfRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "mail.${DomainName}"
+      Type: TXT
+      TTL: "1800"
+      ResourceRecords:
+        - '"v=spf1 include:amazonses.com ~all"'
+
+  DmarcRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "_dmarc.${DomainName}"
+      Type: TXT
+      TTL: "1800"
+      ResourceRecords:
+        # Start in monitoring mode; tighten to p=quarantine once delivery is verified.
+        - '"v=DMARC1; p=none; adkim=s; aspf=r"'
+
+Outputs:
+  OrderTopicArn:
+    Value: !Ref OrderNotificationTopic
+  OpsTopicArn:
+    Value: !Ref OpsAlertTopic
+  NotifierDlqArn:
+    Value: !GetAtt NotifierDlq.Arn
+  NotifierDlqName:
+    Value: !GetAtt NotifierDlq.QueueName
+  SesConfigurationSetName:
+    Value: !If [HasCustomDomain, !Ref SesConfigurationSet, ""]
+  SesIdentityArn:
+    Value: !If
+      - HasCustomDomain
+      - !Sub "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
+      - ""

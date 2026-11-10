@@ -1,0 +1,20 @@
+{
+  "_comment": "Copy to prod.json (git-ignored) and fill in. Email addresses here are placeholders. Leave HostedZoneId empty to use the kvc-dns stack. Set CustomerEmailEnabled to true once SES production access is granted.",
+  "Environment": "prod",
+  "ProjectName": "kvc",
+  "BusinessDisplayName": "Example Cake Co",
+  "BakerName": "Sam",
+  "AdminEmail": "baker@example.com",
+  "SecondAdminEmail": "",
+  "InternalNotificationEmails": "baker@example.com,operator@example.com",
+  "OpsAlertEmail": "operator@example.com",
+  "CognitoDomainPrefix": "kvc-prod-CHANGE-ME",
+  "LogRetentionDays": "30",
+  "CreateOrderReservedConcurrency": "5",
+  "DomainName": "example.co.uk",
+  "HostedZoneId": "",
+  "EnableWaf": "false",
+  "CustomerEmailEnabled": "false",
+  "SesFromAddress": "orders@example.co.uk",
+  "MonthlyBudgetUsd": "5"
+}

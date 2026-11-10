@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  The Route 53 hosted zone for the business domain (registered at
+  another registrar) and the inbound email (forwarding) records. Shared by
+  every environment; deployed once with scripts/deploy-dns.sh. After the first deploy,
+  set the registrar's nameservers to the NameServers output (decision D7).
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: kvc
+    AllowedPattern: "^[a-z][a-z0-9-]{1,15}$"
+  DomainName:
+    Type: String
+    AllowedPattern: "^([a-z0-9-]+\\.)+[a-z]{2,}$"
+    Description: Apex domain, e.g. example.co.uk (lower case, no trailing dot).
+  EmailForwarding:
+    Type: String
+    Default: none
+    AllowedValues: [none, improvmx]
+    Description: >-
+      Inbound mail for any address at the domain. improvmx = forward to an existing inbox
+      through ImprovMX (free plan); the destination address is set in ImprovMX, never here.
+
+Conditions:
+  UseImprovMx: !Equals [!Ref EmailForwarding, improvmx]
+
+Resources:
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    # The zone is what the registrar points at. Deleting it would take the site and email
+    # offline, so it is kept even if the stack is deleted.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Ref DomainName
+      HostedZoneConfig:
+        Comment: !Sub "${ProjectName} shop domain (managed by CloudFormation)"
+      HostedZoneTags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-dns"
+
+  # Inbound mail. SES only sends (from mail.<domain>, set up by the messaging stack), so
+  # these records do not clash with it.
+  ForwardingMxRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: UseImprovMx
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Ref DomainName
+      Type: MX
+      TTL: "3600"
+      ResourceRecords:
+        - "10 mx1.improvmx.com"
+        - "20 mx2.improvmx.com"
+
+  # Apex SPF. Order emails from SES pass DMARC through DKIM and the mail.<domain>
+  # MAIL FROM, so the apex only needs to cover the forwarder.
+  ApexSpfRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: UseImprovMx
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Ref DomainName
+      Type: TXT
+      TTL: "3600"
+      ResourceRecords:
+        - '"v=spf1 include:spf.improvmx.com ~all"'
+
+Outputs:
+  HostedZoneId:
+    Value: !Ref HostedZone
+  NameServers:
+    Description: Enter these four nameservers at the registrar.
+    Value: !Join [",", !GetAtt HostedZone.NameServers]
+  DomainName:
+    Value: !Ref DomainName

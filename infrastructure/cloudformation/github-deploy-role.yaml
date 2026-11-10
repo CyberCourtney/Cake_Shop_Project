@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Lets GitHub Actions deploy this repository without stored AWS keys.
+  Creates (optionally) the GitHub OIDC identity provider and an IAM role that only workflows
+  in <GitHubOwner>/<GitHubRepo>, running in the GitHub "dev" or "prod" environment, can
+  assume. Deploy ONCE per account from the AWS console (CloudFormation > Create stack >
+  Upload a template file) in eu-west-2. See docs/deployment.md#github-actions.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    MinLength: 1
+    Description: GitHub user or organisation that owns the repository.
+  GitHubRepo:
+    Type: String
+    MinLength: 1
+    Description: Repository name.
+  # GitHub now puts the immutable owner and repository IDs in the OIDC subject claim
+  # (repo:Owner@<id>/Repo@<id>:environment:<env>). They are public, not secrets.
+  # Find them with: curl -s https://api.github.com/repos/<owner>/<repo> | jq '.owner.id, .id'
+  GitHubOwnerId:
+    Type: String
+    AllowedPattern: "^[0-9]+$"
+  GitHubRepoId:
+    Type: String
+    AllowedPattern: "^[0-9]+$"
+  CreateOidcProvider:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Set to false if this account already has the token.actions.githubusercontent.com
+      identity provider (IAM > Identity providers). An account can only have one.
+  ProjectName:
+    Type: String
+    Default: kvc
+    AllowedPattern: "^[a-z][a-z0-9-]{1,15}$"
+  ProjectTag:
+    Type: String
+    Default: CakeShop
+    Description: Value of the Project cost-allocation tag (the business name without spaces).
+
+Conditions:
+  CreateProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+        - Key: Environment
+          Value: shared
+        - Key: Owner
+          Value: !Ref GitHubOwner
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Repository
+          Value: !Sub "${GitHubOwner}/${GitHubRepo}"
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-github-deploy"
+      Description: !Sub "Assumed by GitHub Actions (OIDC) to deploy the ${ProjectName} stacks."
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateProvider
+                - !Ref GitHubOidcProvider
+                - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                # Only jobs that declare `environment: dev` or `environment: prod` in this repo.
+                # prod can be given required reviewers in GitHub > Settings > Environments.
+                # Both subject formats are accepted: the newer one with immutable IDs
+                # (what this repo's tokens carry) and the classic name-only one.
+                token.actions.githubusercontent.com:sub:
+                  - !Sub "repo:${GitHubOwner}@${GitHubOwnerId}/${GitHubRepo}@${GitHubRepoId}:environment:dev"
+                  - !Sub "repo:${GitHubOwner}@${GitHubOwnerId}/${GitHubRepo}@${GitHubRepoId}:environment:prod"
+                  - !Sub "repo:${GitHubOwner}/${GitHubRepo}:environment:dev"
+                  - !Sub "repo:${GitHubOwner}/${GitHubRepo}:environment:prod"
+      Policies:
+        - PolicyName: !Sub "deploy-${ProjectName}"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # The services this project's templates create. Scoped by service rather than
+              # by resource, because CloudFormation generates many resource names; IAM itself
+              # is restricted to roles whose names start with the project prefix.
+              - Sid: ProjectServices
+                Effect: Allow
+                Action:
+                  - cloudformation:*
+                  - s3:*
+                  - dynamodb:*
+                  - cognito-idp:*
+                  - sns:*
+                  - sqs:*
+                  - lambda:*
+                  - apigateway:*
+                  - cloudfront:*
+                  - logs:*
+                  - cloudwatch:*
+                  - budgets:*
+                  - ses:*
+                  - route53:*
+                  - acm:*
+                  - wafv2:*
+                Resource: "*"
+              - Sid: ManageOnlyProjectRoles
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:UpdateRole
+                  - iam:UpdateRoleDescription
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:PutRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                  - iam:UpdateAssumeRolePolicy
+                Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${ProjectName}-*"
+              - Sid: PassProjectRolesToLambdaOnly
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${ProjectName}-*"
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: lambda.amazonaws.com
+              - Sid: ReadOnlyHelpers
+                Effect: Allow
+                Action:
+                  - sts:GetCallerIdentity
+                  - iam:ListRoles
+                Resource: "*"
+              - Sid: DenyChangesToThisRole
+                Effect: Deny
+                Action: "iam:*"
+                Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${ProjectName}-github-deploy"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+        - Key: Environment
+          Value: shared
+        - Key: Owner
+          Value: !Ref GitHubOwner
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Repository
+          Value: !Sub "${GitHubOwner}/${GitHubRepo}"
+
+Outputs:
+  DeployRoleArn:
+    Description: Add this as the AWS_DEPLOY_ROLE_ARN repository variable in GitHub.
+    Value: !GetAtt DeployRole.Arn

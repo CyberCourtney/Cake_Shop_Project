@@ -1,0 +1,26 @@
+# Dependencies and build output
+node_modules/
+dist/
+.build/
+coverage/
+*.zip
+
+# Real deployment parameters contain family email addresses - never commit them.
+# Only the *.example.json files are tracked.
+infrastructure/cloudformation/parameters/*.json
+!infrastructure/cloudformation/parameters/*.example.json
+
+# Placeholder images whose licences are unknown (see docs/brand-reference.md)
+frontend/shop/public/placeholders/
+
+# Local environment and credentials
+.env
+.env.*
+*.pem
+.aws/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

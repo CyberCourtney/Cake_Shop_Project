@@ -1,0 +1,71 @@
+name: DNS
+
+# Manual only. Creates or updates the shared Route 53 hosted zone for the business domain
+# (stack <prefix>-dns, template infrastructure/cloudformation/dns.yaml), and checks whether
+# the domain's registrar points at it yet.
+#   review:  show the change set only - nothing is applied
+#   execute: apply it, then print the four nameservers to enter at the registrar
+#   check:   only check whether the nameservers have taken effect
+# Runs in the "prod" GitHub environment, because the domain serves prod.
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Domain (lower case), e.g. example.co.uk
+        type: string
+        required: true
+      action:
+        description: What to do
+        type: choice
+        options: [review, execute, check]
+        default: review
+      email_forwarding:
+        description: Inbound mail (none = the domain receives no mail)
+        type: choice
+        options: [none, improvmx]
+        default: none
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: dns
+  cancel-in-progress: false
+
+jobs:
+  dns:
+    name: DNS (${{ inputs.action }})
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        if: inputs.action != 'check'
+        with:
+          python-version: "3.12"
+
+      - name: Install cfn-lint
+        if: inputs.action != 'check'
+        run: pip install "cfn-lint==1.59.0"
+
+      - name: Configure AWS credentials (OIDC, no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: github-dns-${{ github.run_id }}
+
+      - name: DNS stack
+        env:
+          DOMAIN: ${{ inputs.domain }}
+          ACTION: ${{ inputs.action }}
+          EMAIL_FORWARDING: ${{ inputs.email_forwarding }}
+        run: |
+          case "$ACTION" in
+            review) scripts/deploy-dns.sh "$DOMAIN" ;;
+            execute) scripts/deploy-dns.sh "$DOMAIN" --execute ;;
+            check) scripts/deploy-dns.sh "$DOMAIN" --check ;;
+          esac

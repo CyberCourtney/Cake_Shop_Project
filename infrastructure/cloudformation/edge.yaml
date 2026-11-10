@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Edge resources that CloudFront requires in us-east-1: the ACM
+  certificate for a custom domain, and (optionally) a CLOUDFRONT-scope WAF web ACL.
+  NOT deployed while the site uses the default *.cloudfront.net address (decision D2).
+  Deploy this stack in us-east-1 only.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: kvc
+    AllowedPattern: "^[a-z][a-z0-9-]{1,15}$"
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  DomainName:
+    Type: String
+    Default: ""
+    Description: Apex domain, e.g. example.co.uk. Leave empty to create only the WAF (if enabled).
+  HostedZoneId:
+    Type: String
+    Default: ""
+    Description: Route 53 hosted zone ID for DomainName (used for DNS validation).
+  EnableWaf:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Create a WAF web ACL (about US$8/month on pay-as-you-go pricing).
+  OrderRateLimitPer5Min:
+    Type: Number
+    Default: 100
+    MinValue: 10
+    Description: WAF rate-based rule - max requests per IP per 5 minutes to /api/orders.
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref DomainName, ""]]
+  CreateWaf: !Equals [!Ref EnableWaf, "true"]
+
+Rules:
+  RegionIsUsEast1:
+    Assertions:
+      - Assert: !Equals [!Ref "AWS::Region", us-east-1]
+        AssertDescription: CloudFront certificates and CLOUDFRONT-scope web ACLs must be in us-east-1.
+  ZoneRequiredWithDomain:
+    RuleCondition: !Not [!Equals [!Ref DomainName, ""]]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref HostedZoneId, ""]]
+        AssertDescription: HostedZoneId is required when DomainName is set.
+
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref DomainName
+      SubjectAlternativeNames:
+        - !Sub "www.${DomainName}"
+      ValidationMethod: DNS
+      # CloudFormation creates the validation CNAMEs in the hosted zone and waits.
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+        - DomainName: !Sub "www.${DomainName}"
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-certificate"
+
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Condition: CreateWaf
+    Properties:
+      Name: !Sub "${ProjectName}-${Environment}-web-acl"
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "${ProjectName}-${Environment}-web-acl"
+        SampledRequestsEnabled: true
+      Rules:
+        - Name: AwsIpReputation
+          Priority: 0
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: AwsIpReputation
+            SampledRequestsEnabled: true
+        - Name: AwsCommonRules
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: AwsCommonRules
+            SampledRequestsEnabled: true
+        - Name: OrderSubmissionRateLimit
+          Priority: 2
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref OrderRateLimitPer5Min
+              AggregateKeyType: IP
+              ScopeDownStatement:
+                ByteMatchStatement:
+                  FieldToMatch:
+                    UriPath: {}
+                  PositionalConstraint: STARTS_WITH
+                  SearchString: /api/orders
+                  TextTransformations:
+                    - Priority: 0
+                      Type: NONE
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: OrderSubmissionRateLimit
+            SampledRequestsEnabled: true
+
+Outputs:
+  CertificateArn:
+    Condition: HasCustomDomain
+    Description: Pass to the main stack as CertificateArn (scripts/deploy.sh does this).
+    Value: !Ref Certificate
+  WebAclArn:
+    Condition: CreateWaf
+    Description: Pass to the main stack as WebAclArn (scripts/deploy.sh does this).
+    Value: !GetAtt WebAcl.Arn

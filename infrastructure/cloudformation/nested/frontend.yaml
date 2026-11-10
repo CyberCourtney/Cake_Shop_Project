@@ -1,0 +1,361 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Website delivery. Private S3 bucket for the two single-page apps
+  (shop at /, admin at /admin/), one CloudFront distribution that also routes /api/* to the
+  HTTP API, security headers, SPA routing, and (optionally) a custom domain.
+
+Parameters:
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  BusinessDisplayName:
+    Type: String
+  HttpApiDomain:
+    Type: String
+    Description: execute-api hostname of the HTTP API (origin for /api/*).
+  CognitoDomain:
+    Type: String
+    Description: Hosted sign-in domain, allowed in the Content-Security-Policy.
+  OriginVerifySecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Sent by CloudFront to the API as X-Origin-Verify; the Lambdas reject requests without it.
+  DomainName:
+    Type: String
+    Default: ""
+  HostedZoneId:
+    Type: String
+    Default: ""
+  CertificateArn:
+    Type: String
+    Default: ""
+    Description: ACM certificate in us-east-1 (from the edge stack). Required when DomainName is set.
+  WebAclArn:
+    Type: String
+    Default: ""
+    Description: Optional CLOUDFRONT-scope WAF web ACL ARN (from the edge stack).
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref DomainName, ""]]
+  HasWebAcl: !Not [!Equals [!Ref WebAclArn, ""]]
+
+Resources:
+  # ---------------------------------------------------------------------------
+  # Site bucket: private; only this distribution can read it (Origin Access Control).
+  # The contents are build output and can always be re-uploaded, so the bucket is not
+  # retained. scripts/destroy.sh empties it before the stack is deleted.
+  # ---------------------------------------------------------------------------
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketName: !Sub "${ProjectName}-${Environment}-site-${AWS::AccountId}"
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldSiteVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      Tags:
+        - Key: DataClassification
+          Value: public
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontReadViaOac
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${SiteBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt SiteBucket.Arn
+              - !Sub "${SiteBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  SiteOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-${Environment}-site-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # ---------------------------------------------------------------------------
+  # SPA routing. Custom error responses are distribution-wide and would turn API 403/404
+  # responses into HTML, so routing is done with a viewer-request function on the site
+  # behaviour only. Free tier: 2M invocations a month.
+  # ---------------------------------------------------------------------------
+  SpaRoutingFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${ProjectName}-${Environment}-spa-routing"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Serve index.html for client-side routes of the shop and admin apps.
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          var lastSegment = uri.substring(uri.lastIndexOf('/') + 1);
+          // Real files (with an extension) are served as-is.
+          if (lastSegment.indexOf('.') !== -1) {
+            return request;
+          }
+          if (uri === '/admin') {
+            return { statusCode: 301, statusDescription: 'Moved Permanently',
+                     headers: { location: { value: '/admin/' } } };
+          }
+          request.uri = uri.indexOf('/admin/') === 0 ? '/admin/index.html' : '/index.html';
+          return request;
+        }
+
+  # ---------------------------------------------------------------------------
+  # Cache policies. Managed policy IDs are AWS-published constants:
+  #   658327ea-... CachingOptimized   4135ea2d-... CachingDisabled
+  #   b689b0a8-... AllViewerExceptHostHeader (origin request policy)
+  # ---------------------------------------------------------------------------
+  CatalogueCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${ProjectName}-${Environment}-catalogue-60s"
+        Comment: Cache the public catalogue briefly to cut API and DynamoDB calls.
+        MinTTL: 0
+        DefaultTTL: 60
+        MaxTTL: 300
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig:
+            HeaderBehavior: none
+          CookiesConfig:
+            CookieBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  AdminApiCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${ProjectName}-${Environment}-admin-api-no-store"
+        # CloudFront only forwards Authorization to a custom origin when it is part of the
+        # cache key. Admin responses send Cache-Control no-store and DefaultTTL is 0, so
+        # nothing is cached in practice. (Comment is limited to 128 characters.)
+        Comment: Admin API - Authorization header in the cache key so it reaches the API; not cached.
+        MinTTL: 0
+        DefaultTTL: 0
+        MaxTTL: 1
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Authorization
+          CookiesConfig:
+            CookieBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  SecurityHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub "${ProjectName}-${Environment}-security-headers"
+        SecurityHeadersConfig:
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 63072000
+            IncludeSubdomains: true
+            Preload: false
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          ContentSecurityPolicy:
+            Override: true
+            ContentSecurityPolicy: !Sub >-
+              default-src 'self';
+              script-src 'self';
+              style-src 'self';
+              img-src 'self' data:;
+              font-src 'self';
+              connect-src 'self' https://${CognitoDomain} https://cognito-idp.${AWS::Region}.amazonaws.com;
+              form-action 'self' https://${CognitoDomain};
+              frame-ancestors 'none';
+              base-uri 'self';
+              object-src 'none';
+              upgrade-insecure-requests
+        CustomHeadersConfig:
+          Items:
+            - Header: Permissions-Policy
+              Value: camera=(), microphone=(), geolocation=(), payment=()
+              Override: true
+        RemoveHeadersConfig:
+          Items:
+            - Header: Server
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Metadata:
+      cfn-lint:
+        config:
+          # CertificateArn defaults to "" and is only used when HasCustomDomain is true.
+          ignore_checks: [W1030]
+    Properties:
+      DistributionConfig:
+        Comment: !Sub "${BusinessDisplayName} (${Environment})"
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        # Cheapest price class; covers the UK, Europe and North America edges.
+        PriceClass: PriceClass_100
+        DefaultRootObject: index.html
+        Aliases: !If
+          - HasCustomDomain
+          - [!Ref DomainName, !Sub "www.${DomainName}"]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+        WebACLId: !If [HasWebAcl, !Ref WebAclArn, !Ref AWS::NoValue]
+        Origins:
+          - Id: site
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt SiteOriginAccessControl.Id
+            S3OriginConfig:
+              # Required (empty) when using OAC instead of the legacy OAI.
+              OriginAccessIdentity: ""
+          - Id: api
+            DomainName: !Ref HttpApiDomain
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+            OriginCustomHeaders:
+              - HeaderName: X-Origin-Verify
+                HeaderValue: !Ref OriginVerifySecret
+        DefaultCacheBehavior:
+          TargetOriginId: site
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SpaRoutingFunction.FunctionMetadata.FunctionARN
+        CacheBehaviors:
+          # Order matters: most specific path first.
+          - PathPattern: /api/catalogue
+            TargetOriginId: api
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: !Ref CatalogueCachePolicy
+            ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+          - PathPattern: /api/admin/*
+            TargetOriginId: api
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: !Ref AdminApiCachePolicy
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+            ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+          - PathPattern: /api/*
+            TargetOriginId: api
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+            ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-distribution"
+
+  ApexAliasRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      RecordSets:
+        - Name: !Ref DomainName
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2 # CloudFront's fixed alias zone ID
+        - Name: !Ref DomainName
+          Type: AAAA
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+        - Name: !Sub "www.${DomainName}"
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+        - Name: !Sub "www.${DomainName}"
+          Type: AAAA
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+
+Outputs:
+  SiteBucketName:
+    Value: !Ref SiteBucket
+  DistributionId:
+    Value: !Ref Distribution
+  DistributionDomain:
+    Value: !GetAtt Distribution.DomainName
+  SiteUrl:
+    Description: Public URL of the shop (custom domain if set, otherwise *.cloudfront.net).
+    Value: !If
+      - HasCustomDomain
+      - !Sub "https://${DomainName}"
+      - !Sub "https://${Distribution.DomainName}"
