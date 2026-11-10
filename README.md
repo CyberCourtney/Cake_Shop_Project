@@ -22,6 +22,8 @@ prices, collection dates and the ordering deadline, and export orders to a tidy 
 
 ## How it's built
 
+![How the cake shop fits together](docs/diagrams/architecture.svg)
+
 | Layer | Choice |
 |---|---|
 | Front end | Two React + Vite single-page apps (shop and admin) in a private S3 bucket behind CloudFront |

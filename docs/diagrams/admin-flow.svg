@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1120" width="1600" height="1120" role="img" aria-labelledby="t d">
+  <title id="t">Admin portal flow</title>
+  <desc id="d">Sequence: the baker signs in with MFA through Cognito, then loads the dashboard, confirms an order and downloads an Excel export through the JWT-protected API.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14153A"/><stop offset="1" stop-color="#0F1024"/></linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6C5CE7"/><stop offset="1" stop-color="#FF6B6B"/></linearGradient>
+    <radialGradient id="glow1" cx="0.85" cy="0.1" r="0.5"><stop offset="0" stop-color="#6C5CE7" stop-opacity="0.28"/><stop offset="1" stop-color="#6C5CE7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow2" cx="0.05" cy="0.95" r="0.45"><stop offset="0" stop-color="#FF6B6B" stop-opacity="0.18"/><stop offset="1" stop-color="#FF6B6B" stop-opacity="0"/></radialGradient>
+    <marker id="a-sky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#2EC5FF"/></marker>
+    <marker id="a-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#9D8FFF"/></marker>
+    <marker id="a-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#FF6B6B"/></marker>
+    <marker id="a-mango" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#FFB547"/></marker>
+    <marker id="a-lime" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#B8F23A"/></marker>
+    <marker id="a-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#7C7FA8"/></marker>
+    <marker id="a-mist" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#A9ABD0"/></marker>
+    <marker id="a-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#6C5CE7"/></marker>
+    <symbol id="i-globe" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></g></symbol>
+    <symbol id="i-bucket" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="2.6"/><path d="M4 6l2 13c.3 1.4 2.9 2.4 6 2.4s5.7-1 6-2.4L20 6"/></g></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4 4.3-6 8-6s6.8 2 8 6"/></g></symbol>
+    <symbol id="i-api" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3"/><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3"/></g></symbol>
+    <symbol id="i-lambda" viewBox="0 0 24 24"><path d="M5 21l6-11-3-6H5V3h4.5l9 16.5H21V21h-3.5L13 12.5 8.3 21z" fill="#0F1024"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2"><ellipse cx="12" cy="5.5" rx="8" ry="2.8"/><path d="M4 5.5v13c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8v-13"/><path d="M4 12c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8"/></g></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></g><circle cx="12" cy="15.5" r="1.6" fill="#0F1024"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 6.5l8.5 7 8.5-7"/></g></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></g></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="16" height="4.5" rx="1.5"/><rect x="4" y="10" width="16" height="4.5" rx="1.5"/><rect x="4" y="16" width="16" height="4.5" rx="1.5"/></g></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 8.5c-.6-.9-1.5-1.3-2.5-1.3-1.6 0-2.7.9-2.7 2.1 0 2.9 5.6 1.6 5.6 4.6 0 1.3-1.2 2.2-2.9 2.2-1.1 0-2.1-.5-2.7-1.4M12 5.5v1.7M12 16.8v1.7"/></g></symbol>
+    <symbol id="i-sign" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3v18"/><path d="M5 6h11l3 2.5-3 2.5H5z"/><path d="M19 13H8l-3 2.5L8 18h11z"/></g></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2.5 19h19l-2-4h-15z"/></g></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></g></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></g></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M3 7.5l9-4.5 9 4.5v9l-9 4.5-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#0F1024" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cake" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 21h16M5 21v-7h14v7"/><path d="M5 17c2 1.5 3.5 1.5 4.7 0s2.6-1.5 4.6 0 3.5 1.5 4.7 0"/><path d="M12 14V9"/><path d="M12 6.5c-1-1.2-1-2.4 0-3.5 1 1.1 1 2.3 0 3.5z"/></g></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></g></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></g></symbol>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .h1 { font-size: 30px; font-weight: 800; fill: #FFFFFF; letter-spacing: -0.5px; }
+    .h2 { font-size: 15px; fill: #A9ABD0; }
+    .nt { font-size: 16px; font-weight: 700; fill: #FFFFFF; }
+    .ns { font-size: 12px; fill: #A9ABD0; }
+    .zone { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; fill: #A9ABD0; }
+    .lbl { font-size: 12px; font-weight: 600; }
+    .step { font-size: 12px; font-weight: 800; fill: #0F1024; }
+    .node { fill: #1B1C42; stroke-width: 1.5; }
+  </style>
+  <rect width="1600" height="1120" rx="28" fill="url(#bg)"/>
+  <rect width="1600" height="1120" rx="28" fill="url(#glow1)"/>
+  <rect width="1600" height="1120" rx="28" fill="url(#glow2)"/>
+  <rect x="56" y="38" width="44" height="6" rx="3" fill="#6C5CE7"/>
+  <text x="56" y="80" class="h1">Running the day from the admin portal</text>
+  <text x="56" y="108" class="h2">Sign-in needs MFA, and every admin request is checked by API Gateway before a Lambda runs.</text>
+    <path d="M180.0 234 V1040" fill="none" stroke="#7C7FA8" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <rect x="80.0" y="150" width="200" height="84" rx="16" class="node" stroke="#FFB547"/>
+  <rect x="94.0" y="170.0" width="44" height="44" rx="12" fill="#FFB547"/><use href="#i-cake" x="104.0" y="180.0" width="24" height="24"/>
+  <text x="150.0" y="186.0" class="nt">The baker</text>
+  <text x="150.0" y="205.0" class="ns">admin portal</text>
+  <path d="M428.0 234 V1040" fill="none" stroke="#7C7FA8" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <rect x="328.0" y="150" width="200" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="342.0" y="170.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-globe" x="352.0" y="180.0" width="24" height="24"/>
+  <text x="398.0" y="186.0" class="nt">CloudFront</text>
+  <text x="398.0" y="205.0" class="ns">/admin/</text>
+  <path d="M676.0 234 V1040" fill="none" stroke="#7C7FA8" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <rect x="576.0" y="150" width="200" height="84" rx="16" class="node" stroke="#9D8FFF"/>
+  <rect x="590.0" y="170.0" width="44" height="44" rx="12" fill="#9D8FFF"/><use href="#i-lock" x="600.0" y="180.0" width="24" height="24"/>
+  <text x="646.0" y="186.0" class="nt">Cognito</text>
+  <text x="646.0" y="205.0" class="ns">managed login</text>
+  <path d="M924.0 234 V1040" fill="none" stroke="#7C7FA8" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <rect x="824.0" y="150" width="200" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="838.0" y="170.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-api" x="848.0" y="180.0" width="24" height="24"/>
+  <text x="894.0" y="186.0" class="nt">HTTP API</text>
+  <text x="894.0" y="205.0" class="ns">JWT authorizer</text>
+  <path d="M1172.0 234 V1040" fill="none" stroke="#7C7FA8" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <rect x="1072.0" y="150" width="200" height="84" rx="16" class="node" stroke="#9D8FFF"/>
+  <rect x="1086.0" y="170.0" width="44" height="44" rx="12" fill="#9D8FFF"/><use href="#i-lambda" x="1096.0" y="180.0" width="24" height="24"/>
+  <text x="1142.0" y="186.0" class="nt">admin Lambdas</text>
+  <text x="1142.0" y="205.0" class="ns">api and export</text>
+  <path d="M1420.0 234 V1040" fill="none" stroke="#7C7FA8" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <rect x="1320.0" y="150" width="200" height="84" rx="16" class="node" stroke="#B8F23A"/>
+  <rect x="1334.0" y="170.0" width="44" height="44" rx="12" fill="#B8F23A"/><use href="#i-db" x="1344.0" y="180.0" width="24" height="24"/>
+  <text x="1390.0" y="186.0" class="nt">DynamoDB</text>
+  <text x="1390.0" y="205.0" class="ns">one table</text>
+  <path d="M184.0 284 H420.0" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <circle cx="158.0" cy="284" r="13" fill="#2EC5FF"/><text x="158.0" y="288.5" text-anchor="middle" class="step">1</text>
+  <rect x="259.0" y="259" width="106" height="22" rx="11" fill="#14153A"/><text x="312.0" y="274" text-anchor="middle" class="lbl" fill="#2EC5FF">Open /admin/</text>
+  <path d="M424.0 338 H188.0" fill="none" stroke="#2EC5FF" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a-sky)"/>
+  <circle cx="450.0" cy="338" r="13" fill="#2EC5FF"/><text x="450.0" y="342.5" text-anchor="middle" class="step">2</text>
+  <rect x="197.5" y="313" width="197" height="22" rx="11" fill="#14153A"/><text x="296.0" y="328" text-anchor="middle" class="lbl" fill="#2EC5FF">admin app, no data inside</text>
+  <path d="M184.0 392 H668.0" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <circle cx="158.0" cy="392" r="13" fill="#9D8FFF"/><text x="158.0" y="396.5" text-anchor="middle" class="step">3</text>
+  <rect x="327.0" y="367" width="218" height="22" rx="11" fill="#14153A"/><text x="436.0" y="382" text-anchor="middle" class="lbl" fill="#9D8FFF">sign in: password + MFA code</text>
+  <text x="436.0" y="410" text-anchor="middle" class="ns">Authorization Code with PKCE</text>
+  <path d="M672.0 446 H188.0" fill="none" stroke="#9D8FFF" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a-violet)"/>
+  <circle cx="698.0" cy="446" r="13" fill="#9D8FFF"/><text x="698.0" y="450.5" text-anchor="middle" class="step">4</text>
+  <rect x="290.0" y="421" width="260" height="22" rx="11" fill="#14153A"/><text x="420.0" y="436" text-anchor="middle" class="lbl" fill="#9D8FFF">short-lived tokens, kept in memory</text>
+  <path d="M184.0 500 H916.0" fill="none" stroke="#FFB547" stroke-width="2" marker-end="url(#a-mango)"/>
+  <circle cx="158.0" cy="500" r="13" fill="#FFB547"/><text x="158.0" y="504.5" text-anchor="middle" class="step">5</text>
+  <rect x="503.5" y="475" width="113" height="22" rx="11" fill="#14153A"/><text x="560.0" y="490" text-anchor="middle" class="lbl" fill="#FFB547">GET dashboard</text>
+  <text x="560.0" y="518" text-anchor="middle" class="ns">Bearer token</text>
+  <path d="M924.0 548 h36 v18 h-32" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <circle cx="902.0" cy="557" r="13" fill="#9D8FFF"/><text x="902.0" y="561.5" text-anchor="middle" class="step">6</text>
+  <rect x="965.0" y="540" width="253" height="22" rx="11" fill="#14153A"/><text x="976.0" y="555" class="lbl" fill="#9D8FFF">check signature, expiry, audience</text><text x="976.0" y="571" class="ns">and the admins group</text>
+  <path d="M928.0 608 H1164.0" fill="none" stroke="#FFB547" stroke-width="2" marker-end="url(#a-mango)"/>
+  <circle cx="902.0" cy="608" r="13" fill="#FFB547"/><text x="902.0" y="612.5" text-anchor="middle" class="step">7</text>
+  <rect x="1024.0" y="583" width="64" height="22" rx="11" fill="#14153A"/><text x="1056.0" y="598" text-anchor="middle" class="lbl" fill="#FFB547">invoke</text>
+  <path d="M1176.0 662 H1412.0" fill="none" stroke="#B8F23A" stroke-width="2" marker-end="url(#a-lime)"/>
+  <circle cx="1150.0" cy="662" r="13" fill="#B8F23A"/><text x="1150.0" y="666.5" text-anchor="middle" class="step">8</text>
+  <rect x="1202.0" y="637" width="204" height="22" rx="11" fill="#14153A"/><text x="1304.0" y="652" text-anchor="middle" class="lbl" fill="#B8F23A">query this season's orders</text>
+  <path d="M1168.0 716 H188.0" fill="none" stroke="#FFB547" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a-mango)"/>
+  <circle cx="1194.0" cy="716" r="13" fill="#FFB547"/><text x="1194.0" y="720.5" text-anchor="middle" class="step">9</text>
+  <rect x="506.5" y="691" width="323" height="22" rx="11" fill="#14153A"/><text x="668.0" y="706" text-anchor="middle" class="lbl" fill="#FFB547">what to bake each day, totals, payments due</text>
+  <path d="M184.0 770 H916.0" fill="none" stroke="#FFB547" stroke-width="2" marker-end="url(#a-mango)"/>
+  <circle cx="158.0" cy="770" r="13" fill="#FFB547"/><text x="158.0" y="774.5" text-anchor="middle" class="step">10</text>
+  <rect x="468.5" y="745" width="183" height="22" rx="11" fill="#14153A"/><text x="560.0" y="760" text-anchor="middle" class="lbl" fill="#FFB547">PATCH status: Confirmed</text>
+  <path d="M1176.0 824 H1412.0" fill="none" stroke="#B8F23A" stroke-width="2" marker-end="url(#a-lime)"/>
+  <circle cx="1150.0" cy="824" r="13" fill="#B8F23A"/><text x="1150.0" y="828.5" text-anchor="middle" class="step">11</text>
+  <rect x="1205.5" y="799" width="197" height="22" rx="11" fill="#14153A"/><text x="1304.0" y="814" text-anchor="middle" class="lbl" fill="#B8F23A">update with version check</text>
+  <text x="1304.0" y="842" text-anchor="middle" class="ns">and add to the history</text>
+  <rect x="1069.5" y="852" width="453.0" height="40" rx="12" fill="#17183F"/>
+  <rect x="1069.5" y="852" width="453.0" height="40" rx="12" fill="#FF6B6B" fill-opacity="0.12" stroke="#FF6B6B" stroke-opacity="0.5"/>
+  <text x="1296.0" y="870" text-anchor="middle" class="lbl" fill="#FF6B6B">The stream change makes the notifier send 'order confirmed'</text>
+  <path d="M184.0 932 H916.0" fill="none" stroke="#FFB547" stroke-width="2" marker-end="url(#a-mango)"/>
+  <circle cx="158.0" cy="932" r="13" fill="#FFB547"/><text x="158.0" y="936.5" text-anchor="middle" class="step">12</text>
+  <rect x="458.0" y="907" width="204" height="22" rx="11" fill="#14153A"/><text x="560.0" y="922" text-anchor="middle" class="lbl" fill="#FFB547">GET orders.xlsx for a date</text>
+  <path d="M1168.0 986 H188.0" fill="none" stroke="#B8F23A" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a-lime)"/>
+  <circle cx="1194.0" cy="986" r="13" fill="#B8F23A"/><text x="1194.0" y="990.5" text-anchor="middle" class="step">13</text>
+  <rect x="608.0" y="961" width="120" height="22" rx="11" fill="#14153A"/><text x="668.0" y="976" text-anchor="middle" class="lbl" fill="#B8F23A">Excel download</text>
+  <g transform="translate(56 1080)"><circle cx="8" cy="0" r="6" fill="#2EC5FF"/><text x="22" y="4.5" class="ns">static app</text><circle cx="124.0" cy="0" r="6" fill="#9D8FFF"/><text x="138.0" y="4.5" class="ns">sign-in and checks</text><circle cx="292.8" cy="0" r="6" fill="#FFB547"/><text x="306.8" y="4.5" class="ns">admin requests</text><circle cx="435.2" cy="0" r="6" fill="#B8F23A"/><text x="449.2" y="4.5" class="ns">data</text><circle cx="511.6" cy="0" r="6" fill="#FF6B6B"/><text x="525.6" y="4.5" class="ns">email follows</text><path d="M639.4000000000001 0 h30" stroke="#A9ABD0" stroke-width="1.5" stroke-dasharray="6 5"/><text x="679.4000000000001" y="4.5" class="ns">reply</text></g>
+</svg>

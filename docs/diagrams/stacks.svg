@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 860" width="1600" height="860" role="img" aria-labelledby="t d">
+  <title id="t">CloudFormation stacks</title>
+  <desc id="d">A bootstrap stack holds the artifacts bucket. An optional edge stack in us-east-1 holds the certificate. The root stack in eu-west-2 creates seven nested stacks: data, auth, messaging, api-gateway, frontend, backend and monitoring.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14153A"/><stop offset="1" stop-color="#0F1024"/></linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6C5CE7"/><stop offset="1" stop-color="#FF6B6B"/></linearGradient>
+    <radialGradient id="glow1" cx="0.85" cy="0.1" r="0.5"><stop offset="0" stop-color="#6C5CE7" stop-opacity="0.28"/><stop offset="1" stop-color="#6C5CE7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow2" cx="0.05" cy="0.95" r="0.45"><stop offset="0" stop-color="#FF6B6B" stop-opacity="0.18"/><stop offset="1" stop-color="#FF6B6B" stop-opacity="0"/></radialGradient>
+    <marker id="a-sky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#2EC5FF"/></marker>
+    <marker id="a-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#9D8FFF"/></marker>
+    <marker id="a-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#FF6B6B"/></marker>
+    <marker id="a-mango" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#FFB547"/></marker>
+    <marker id="a-lime" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#B8F23A"/></marker>
+    <marker id="a-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#7C7FA8"/></marker>
+    <marker id="a-mist" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#A9ABD0"/></marker>
+    <marker id="a-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#6C5CE7"/></marker>
+    <symbol id="i-globe" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></g></symbol>
+    <symbol id="i-bucket" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="2.6"/><path d="M4 6l2 13c.3 1.4 2.9 2.4 6 2.4s5.7-1 6-2.4L20 6"/></g></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4 4.3-6 8-6s6.8 2 8 6"/></g></symbol>
+    <symbol id="i-api" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3"/><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3"/></g></symbol>
+    <symbol id="i-lambda" viewBox="0 0 24 24"><path d="M5 21l6-11-3-6H5V3h4.5l9 16.5H21V21h-3.5L13 12.5 8.3 21z" fill="#0F1024"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2"><ellipse cx="12" cy="5.5" rx="8" ry="2.8"/><path d="M4 5.5v13c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8v-13"/><path d="M4 12c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8"/></g></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></g><circle cx="12" cy="15.5" r="1.6" fill="#0F1024"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 6.5l8.5 7 8.5-7"/></g></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></g></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="16" height="4.5" rx="1.5"/><rect x="4" y="10" width="16" height="4.5" rx="1.5"/><rect x="4" y="16" width="16" height="4.5" rx="1.5"/></g></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 8.5c-.6-.9-1.5-1.3-2.5-1.3-1.6 0-2.7.9-2.7 2.1 0 2.9 5.6 1.6 5.6 4.6 0 1.3-1.2 2.2-2.9 2.2-1.1 0-2.1-.5-2.7-1.4M12 5.5v1.7M12 16.8v1.7"/></g></symbol>
+    <symbol id="i-sign" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3v18"/><path d="M5 6h11l3 2.5-3 2.5H5z"/><path d="M19 13H8l-3 2.5L8 18h11z"/></g></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2.5 19h19l-2-4h-15z"/></g></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></g></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></g></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M3 7.5l9-4.5 9 4.5v9l-9 4.5-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#0F1024" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cake" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 21h16M5 21v-7h14v7"/><path d="M5 17c2 1.5 3.5 1.5 4.7 0s2.6-1.5 4.6 0 3.5 1.5 4.7 0"/><path d="M12 14V9"/><path d="M12 6.5c-1-1.2-1-2.4 0-3.5 1 1.1 1 2.3 0 3.5z"/></g></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></g></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></g></symbol>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .h1 { font-size: 30px; font-weight: 800; fill: #FFFFFF; letter-spacing: -0.5px; }
+    .h2 { font-size: 15px; fill: #A9ABD0; }
+    .nt { font-size: 16px; font-weight: 700; fill: #FFFFFF; }
+    .ns { font-size: 12px; fill: #A9ABD0; }
+    .zone { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; fill: #A9ABD0; }
+    .lbl { font-size: 12px; font-weight: 600; }
+    .step { font-size: 12px; font-weight: 800; fill: #0F1024; }
+    .node { fill: #1B1C42; stroke-width: 1.5; }
+  </style>
+  <rect width="1600" height="860" rx="28" fill="url(#bg)"/>
+  <rect width="1600" height="860" rx="28" fill="url(#glow1)"/>
+  <rect width="1600" height="860" rx="28" fill="url(#glow2)"/>
+  <rect x="56" y="38" width="44" height="6" rx="3" fill="#6C5CE7"/>
+  <text x="56" y="80" class="h1">Every resource, in plain CloudFormation</text>
+  <text x="56" y="108" class="h2">One root stack per environment with seven nested stacks. Arrows show which outputs feed which stack.</text>
+    <rect x="56" y="150" width="360" height="250" rx="22" fill="#FFFFFF" fill-opacity="0.025" stroke="#7C7FA8" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="2 0"/><text x="76" y="176" class="zone">EU-WEST-2 · ONCE PER ACCOUNT</text>
+  <rect x="96" y="200" width="280" height="84" rx="16" class="node" stroke="#7C7FA8"/>
+  <rect x="110" y="220.0" width="44" height="44" rx="12" fill="#7C7FA8"/><use href="#i-bucket" x="120" y="230.0" width="24" height="24"/>
+  <text x="166" y="228.0" class="nt">kvc-bootstrap</text>
+  <text x="166" y="247.0" class="ns">artifacts bucket</text>
+  <text x="166" y="263.0" class="ns">templates + zips</text>
+  <rect x="56" y="440" width="360" height="250" rx="22" fill="#FFFFFF" fill-opacity="0.025" stroke="#2EC5FF" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="2 0"/><text x="76" y="466" class="zone">US-EAST-1 · ONLY WITH A DOMAIN</text>
+  <rect x="96" y="490" width="280" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="110" y="510.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-shield" x="120" y="520.0" width="24" height="24"/>
+  <text x="166" y="518.0" class="nt">kvc-env-edge</text>
+  <text x="166" y="537.0" class="ns">ACM certificate</text>
+  <text x="166" y="553.0" class="ns">optional WAF</text>
+  <rect x="470" y="150" width="1074" height="600" rx="22" fill="#FFFFFF" fill-opacity="0.025" stroke="#6C5CE7" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="2 0"/><text x="490" y="176" class="zone">EU-WEST-2 · KVC-ENV ROOT STACK</text>
+  <rect x="510" y="210" width="270" height="84" rx="16" class="node" stroke="#B8F23A"/>
+  <rect x="524" y="230.0" width="44" height="44" rx="12" fill="#B8F23A"/><use href="#i-db" x="534" y="240.0" width="24" height="24"/>
+  <text x="580" y="246.0" class="nt">data</text>
+  <text x="580" y="265.0" class="ns">DynamoDB table</text>
+  <rect x="510" y="350" width="270" height="84" rx="16" class="node" stroke="#9D8FFF"/>
+  <rect x="524" y="370.0" width="44" height="44" rx="12" fill="#9D8FFF"/><use href="#i-lock" x="534" y="380.0" width="24" height="24"/>
+  <text x="580" y="378.0" class="nt">auth</text>
+  <text x="580" y="397.0" class="ns">Cognito pool, domain,</text>
+  <text x="580" y="413.0" class="ns">admins group</text>
+  <rect x="510" y="490" width="270" height="84" rx="16" class="node" stroke="#FF6B6B"/>
+  <rect x="524" y="510.0" width="44" height="44" rx="12" fill="#FF6B6B"/><use href="#i-mail" x="534" y="520.0" width="24" height="24"/>
+  <text x="580" y="518.0" class="nt">messaging</text>
+  <text x="580" y="537.0" class="ns">SNS, SES, DKIM records,</text>
+  <text x="580" y="553.0" class="ns">dead-letter queue</text>
+  <rect x="510" y="630" width="270" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="524" y="650.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-api" x="534" y="660.0" width="24" height="24"/>
+  <text x="580" y="658.0" class="nt">api-gateway</text>
+  <text x="580" y="677.0" class="ns">bare HTTP API</text>
+  <text x="580" y="693.0" class="ns">breaks a cycle</text>
+  <rect x="870" y="280" width="270" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="884" y="300.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-globe" x="894" y="310.0" width="24" height="24"/>
+  <text x="940" y="308.0" class="nt">frontend</text>
+  <text x="940" y="327.0" class="ns">bucket, CloudFront,</text>
+  <text x="940" y="343.0" class="ns">Route 53 aliases</text>
+  <rect x="870" y="520" width="270" height="84" rx="16" class="node" stroke="#FFB547"/>
+  <rect x="884" y="540.0" width="44" height="44" rx="12" fill="#FFB547"/><use href="#i-lambda" x="894" y="550.0" width="24" height="24"/>
+  <text x="940" y="548.0" class="nt">backend</text>
+  <text x="940" y="567.0" class="ns">5 Lambdas, roles, routes,</text>
+  <text x="940" y="583.0" class="ns">authorizer, stream</text>
+  <rect x="1230" y="520" width="270" height="84" rx="16" class="node" stroke="#7C7FA8"/>
+  <rect x="1244" y="540.0" width="44" height="44" rx="12" fill="#7C7FA8"/><use href="#i-chart" x="1254" y="550.0" width="24" height="24"/>
+  <text x="1300" y="548.0" class="nt">monitoring</text>
+  <text x="1300" y="567.0" class="ns">CloudWatch alarms,</text>
+  <text x="1300" y="583.0" class="ns">AWS Budget</text>
+  <path d="M376 242 C430 242 430 300 468 300" fill="none" stroke="#7C7FA8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a-grey)"/>
+  <rect x="381" y="271" width="85" height="22" rx="11" fill="#14153A"/><text x="392" y="286" class="lbl" fill="#7C7FA8">templates</text>
+  <path d="M376 532 C430 532 430 480 468 480" fill="none" stroke="#2EC5FF" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a-sky)"/>
+  <rect x="381" y="551" width="127" height="22" rx="11" fill="#14153A"/><text x="392" y="566" class="lbl" fill="#2EC5FF">certificate ARN</text>
+  <path d="M780 252 C830 252 830 540 868 540" fill="none" stroke="#B8F23A" stroke-width="2" marker-end="url(#a-lime)"/>
+  <path d="M780 380 C825 380 825 310 868 310" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <path d="M780 400 C830 400 830 552 868 552" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <path d="M780 532 H868" fill="none" stroke="#FF6B6B" stroke-width="2" marker-end="url(#a-coral)"/>
+  <path d="M780 560 C1000 700 1150 700 1260 606" fill="none" stroke="#FF6B6B" stroke-width="2" marker-end="url(#a-coral)"/>
+  <path d="M780 660 C835 660 830 340 868 340" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <path d="M780 672 C840 672 840 590 868 586" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <path d="M1005 364 V518" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <text x="1015" y="446" class="lbl" fill="#2EC5FF">site URL</text>
+  <path d="M1140 562 H1228" fill="none" stroke="#FFB547" stroke-width="2" marker-end="url(#a-mango)"/>
+  <text x="1230" y="220" class="lbl" fill="#A9ABD0">Why a bare API stack?</text><text x="1230" y="242" class="ns">frontend needs the API URL and</text><text x="1230" y="258" class="ns">backend needs the site URL.</text><text x="1230" y="274" class="ns">Creating the API on its own</text><text x="1230" y="290" class="ns">first breaks that loop.</text>
+  <g transform="translate(56 820)"><circle cx="8" cy="0" r="6" fill="#B8F23A"/><text x="22" y="4.5" class="ns">data</text><circle cx="84.4" cy="0" r="6" fill="#9D8FFF"/><text x="98.4" y="4.5" class="ns">auth</text><circle cx="160.8" cy="0" r="6" fill="#FF6B6B"/><text x="174.8" y="4.5" class="ns">messaging</text><circle cx="270.20000000000005" cy="0" r="6" fill="#2EC5FF"/><text x="284.20000000000005" y="4.5" class="ns">web and API</text><circle cx="392.80000000000007" cy="0" r="6" fill="#FFB547"/><text x="406.80000000000007" y="4.5" class="ns">backend</text><circle cx="489.00000000000006" cy="0" r="6" fill="#7C7FA8"/><text x="503.00000000000006" y="4.5" class="ns">operations</text><path d="M597.0 0 h30" stroke="#A9ABD0" stroke-width="1.5" stroke-dasharray="6 5"/><text x="637.0" y="4.5" class="ns">passed in by deploy.sh</text></g>
+</svg>

@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 880" width="1600" height="880" role="img" aria-labelledby="t d">
+  <title id="t">Cake shop architecture</title>
+  <desc id="d">Customers and the baker reach CloudFront, which serves the two React apps from S3 and forwards API calls to API Gateway and Lambda. Orders are stored in DynamoDB; a stream triggers the notifier, which emails the customer through SES and alerts the baker through SNS. Failures land in a dead-letter queue watched by CloudWatch.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14153A"/><stop offset="1" stop-color="#0F1024"/></linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6C5CE7"/><stop offset="1" stop-color="#FF6B6B"/></linearGradient>
+    <radialGradient id="glow1" cx="0.85" cy="0.1" r="0.5"><stop offset="0" stop-color="#6C5CE7" stop-opacity="0.28"/><stop offset="1" stop-color="#6C5CE7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow2" cx="0.05" cy="0.95" r="0.45"><stop offset="0" stop-color="#FF6B6B" stop-opacity="0.18"/><stop offset="1" stop-color="#FF6B6B" stop-opacity="0"/></radialGradient>
+    <marker id="a-sky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#2EC5FF"/></marker>
+    <marker id="a-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#9D8FFF"/></marker>
+    <marker id="a-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#FF6B6B"/></marker>
+    <marker id="a-mango" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#FFB547"/></marker>
+    <marker id="a-lime" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#B8F23A"/></marker>
+    <marker id="a-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#7C7FA8"/></marker>
+    <marker id="a-mist" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#A9ABD0"/></marker>
+    <marker id="a-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#6C5CE7"/></marker>
+    <symbol id="i-globe" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></g></symbol>
+    <symbol id="i-bucket" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="2.6"/><path d="M4 6l2 13c.3 1.4 2.9 2.4 6 2.4s5.7-1 6-2.4L20 6"/></g></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4 4.3-6 8-6s6.8 2 8 6"/></g></symbol>
+    <symbol id="i-api" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3"/><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3"/></g></symbol>
+    <symbol id="i-lambda" viewBox="0 0 24 24"><path d="M5 21l6-11-3-6H5V3h4.5l9 16.5H21V21h-3.5L13 12.5 8.3 21z" fill="#0F1024"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2"><ellipse cx="12" cy="5.5" rx="8" ry="2.8"/><path d="M4 5.5v13c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8v-13"/><path d="M4 12c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8"/></g></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></g><circle cx="12" cy="15.5" r="1.6" fill="#0F1024"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 6.5l8.5 7 8.5-7"/></g></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></g></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="16" height="4.5" rx="1.5"/><rect x="4" y="10" width="16" height="4.5" rx="1.5"/><rect x="4" y="16" width="16" height="4.5" rx="1.5"/></g></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 8.5c-.6-.9-1.5-1.3-2.5-1.3-1.6 0-2.7.9-2.7 2.1 0 2.9 5.6 1.6 5.6 4.6 0 1.3-1.2 2.2-2.9 2.2-1.1 0-2.1-.5-2.7-1.4M12 5.5v1.7M12 16.8v1.7"/></g></symbol>
+    <symbol id="i-sign" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3v18"/><path d="M5 6h11l3 2.5-3 2.5H5z"/><path d="M19 13H8l-3 2.5L8 18h11z"/></g></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2.5 19h19l-2-4h-15z"/></g></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></g></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></g></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M3 7.5l9-4.5 9 4.5v9l-9 4.5-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#0F1024" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cake" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 21h16M5 21v-7h14v7"/><path d="M5 17c2 1.5 3.5 1.5 4.7 0s2.6-1.5 4.6 0 3.5 1.5 4.7 0"/><path d="M12 14V9"/><path d="M12 6.5c-1-1.2-1-2.4 0-3.5 1 1.1 1 2.3 0 3.5z"/></g></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></g></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></g></symbol>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .h1 { font-size: 30px; font-weight: 800; fill: #FFFFFF; letter-spacing: -0.5px; }
+    .h2 { font-size: 15px; fill: #A9ABD0; }
+    .nt { font-size: 16px; font-weight: 700; fill: #FFFFFF; }
+    .ns { font-size: 12px; fill: #A9ABD0; }
+    .zone { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; fill: #A9ABD0; }
+    .lbl { font-size: 12px; font-weight: 600; }
+    .step { font-size: 12px; font-weight: 800; fill: #0F1024; }
+    .node { fill: #1B1C42; stroke-width: 1.5; }
+  </style>
+  <rect width="1600" height="880" rx="28" fill="url(#bg)"/>
+  <rect width="1600" height="880" rx="28" fill="url(#glow1)"/>
+  <rect width="1600" height="880" rx="28" fill="url(#glow2)"/>
+  <rect x="56" y="38" width="44" height="6" rx="3" fill="#6C5CE7"/>
+  <text x="56" y="80" class="h1">How the cake shop fits together</text>
+  <text x="56" y="108" class="h2">Two small React apps, five Lambda functions and one table. Serverless, so it costs pennies outside December.</text>
+    <rect x="296" y="150" width="270" height="580" rx="22" fill="#FFFFFF" fill-opacity="0.025" stroke="#2EC5FF" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="2 0"/><text x="316" y="176" class="zone">GLOBAL EDGE</text>
+  <rect x="590" y="150" width="954" height="630" rx="22" fill="#FFFFFF" fill-opacity="0.025" stroke="#6C5CE7" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="2 0"/><text x="610" y="176" class="zone">EU-WEST-2 · LONDON</text>
+  <rect x="830" y="192" width="240" height="392" rx="22" fill="#FFFFFF" fill-opacity="0.03" stroke="#9D8FFF" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="2 0"/><text x="850" y="218" class="zone">LAMBDA · NODE.JS ARM64</text>
+  <rect x="56" y="170" width="200" height="250" rx="30" fill="#1B1C42" stroke="url(#hero)" stroke-width="3"/><rect x="126.0" y="184" width="60" height="8" rx="4" fill="#0F1024"/><rect x="126.0" y="210" width="60" height="60" rx="16" fill="url(#hero)"/><use href="#i-user" x="138.0" y="222" width="36" height="36" style="color:#fff"/><text x="156.0" y="300" text-anchor="middle" class="nt">Customer</text><text x="156.0" y="320" text-anchor="middle" class="ns">phone, tablet or desktop</text><rect x="80" y="340" width="150" height="10" rx="5" fill="#2EC5FF" fill-opacity="0.8"/><rect x="80" y="358" width="110" height="10" rx="5" fill="#2EC5FF" fill-opacity="0.8"/><rect x="80" y="376" width="130" height="10" rx="5" fill="#FF6B6B" fill-opacity="0.8"/><rect x="80" y="394" width="90" height="10" rx="5" fill="#B8F23A" fill-opacity="0.8"/>
+  <rect x="56" y="470" width="200" height="250" rx="30" fill="#1B1C42" stroke="url(#hero)" stroke-width="3"/><rect x="126.0" y="484" width="60" height="8" rx="4" fill="#0F1024"/><rect x="126.0" y="510" width="60" height="60" rx="16" fill="url(#hero)"/><use href="#i-cake" x="138.0" y="522" width="36" height="36" style="color:#fff"/><text x="156.0" y="600" text-anchor="middle" class="nt">The baker</text><text x="156.0" y="620" text-anchor="middle" class="ns">admin portal, MFA</text><rect x="80" y="640" width="150" height="10" rx="5" fill="#9D8FFF" fill-opacity="0.8"/><rect x="80" y="658" width="120" height="10" rx="5" fill="#9D8FFF" fill-opacity="0.8"/><rect x="80" y="676" width="100" height="10" rx="5" fill="#FFB547" fill-opacity="0.8"/><rect x="80" y="694" width="130" height="10" rx="5" fill="#B8F23A" fill-opacity="0.8"/>
+  <rect x="316" y="190" width="230" height="56" rx="14" class="node" stroke="#2EC5FF"/><rect x="328" y="200" width="36" height="36" rx="10" fill="#2EC5FF"/><use href="#i-sign" x="334" y="206" width="24" height="24"/><text x="376" y="214" class="lbl" fill="#FFFFFF">Route 53</text><text x="376" y="232" class="ns">DNS for the domain</text>
+  <rect x="320" y="330" width="200" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="334" y="350.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-globe" x="344" y="360.0" width="24" height="24"/>
+  <text x="390" y="358.0" class="nt">CloudFront</text>
+  <text x="390" y="377.0" class="ns">HTTPS, headers</text>
+  <text x="390" y="393.0" class="ns">60 s API cache</text>
+  <rect x="316" y="486" width="230" height="56" rx="14" class="node" stroke="#7C7FA8"/><rect x="328" y="496" width="36" height="36" rx="10" fill="#7C7FA8"/><use href="#i-shield" x="334" y="502" width="24" height="24"/><text x="376" y="510" class="lbl" fill="#FFFFFF">ACM certificate</text><text x="376" y="528" class="ns">lives in us-east-1</text>
+  <rect x="615" y="200" width="190" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="629" y="220.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-bucket" x="639" y="230.0" width="24" height="24"/>
+  <text x="685" y="228.0" class="nt">S3 bucket</text>
+  <text x="685" y="247.0" class="ns">private, OAC</text>
+  <text x="685" y="263.0" class="ns">shop + admin apps</text>
+  <rect x="615" y="330" width="190" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="629" y="350.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-api" x="639" y="360.0" width="24" height="24"/>
+  <text x="685" y="358.0" class="nt">API Gateway</text>
+  <text x="685" y="377.0" class="ns">HTTP API</text>
+  <text x="685" y="393.0" class="ns">throttled</text>
+  <rect x="615" y="600" width="190" height="84" rx="16" class="node" stroke="#9D8FFF"/>
+  <rect x="629" y="620.0" width="44" height="44" rx="12" fill="#9D8FFF"/><use href="#i-lock" x="639" y="630.0" width="24" height="24"/>
+  <text x="685" y="628.0" class="nt">Cognito</text>
+  <text x="685" y="647.0" class="ns">admins only</text>
+  <text x="685" y="663.0" class="ns">MFA required</text>
+  <rect x="850" y="232" width="200" height="70" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="864" y="245.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-lambda" x="874" y="255.0" width="24" height="24"/>
+  <text x="920" y="261.0" class="nt">catalogue</text>
+  <text x="920" y="280.0" class="ns">public, read only</text>
+  <rect x="850" y="312" width="200" height="70" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="864" y="325.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-lambda" x="874" y="335.0" width="24" height="24"/>
+  <text x="920" y="341.0" class="nt">create-order</text>
+  <text x="920" y="360.0" class="ns">public, validated</text>
+  <rect x="850" y="392" width="200" height="70" rx="16" class="node" stroke="#9D8FFF"/>
+  <rect x="864" y="405.0" width="44" height="44" rx="12" fill="#9D8FFF"/><use href="#i-lambda" x="874" y="415.0" width="24" height="24"/>
+  <text x="920" y="421.0" class="nt">admin-api</text>
+  <text x="920" y="440.0" class="ns">JWT, admins group</text>
+  <rect x="850" y="472" width="200" height="70" rx="16" class="node" stroke="#9D8FFF"/>
+  <rect x="864" y="485.0" width="44" height="44" rx="12" fill="#9D8FFF"/><use href="#i-lambda" x="874" y="495.0" width="24" height="24"/>
+  <text x="920" y="501.0" class="nt">admin-export</text>
+  <text x="920" y="520.0" class="ns">JWT, Excel file</text>
+  <rect x="1095" y="330" width="190" height="84" rx="16" class="node" stroke="#B8F23A"/>
+  <rect x="1109" y="350.0" width="44" height="44" rx="12" fill="#B8F23A"/><use href="#i-db" x="1119" y="360.0" width="24" height="24"/>
+  <text x="1165" y="358.0" class="nt">DynamoDB</text>
+  <text x="1165" y="377.0" class="ns">one table, PITR</text>
+  <text x="1165" y="393.0" class="ns">with Streams</text>
+  <rect x="1095" y="480" width="190" height="84" rx="16" class="node" stroke="#FFB547"/>
+  <rect x="1109" y="500.0" width="44" height="44" rx="12" fill="#FFB547"/><use href="#i-lambda" x="1119" y="510.0" width="24" height="24"/>
+  <text x="1165" y="508.0" class="nt">notifier</text>
+  <text x="1165" y="527.0" class="ns">reads the stream</text>
+  <text x="1165" y="543.0" class="ns">sends the emails</text>
+  <rect x="1340" y="200" width="190" height="84" rx="16" class="node" stroke="#FF6B6B"/>
+  <rect x="1354" y="220.0" width="44" height="44" rx="12" fill="#FF6B6B"/><use href="#i-mail" x="1364" y="230.0" width="24" height="24"/>
+  <text x="1410" y="228.0" class="nt">SES</text>
+  <text x="1410" y="247.0" class="ns">customer emails</text>
+  <text x="1410" y="263.0" class="ns">received, confirmed</text>
+  <rect x="1340" y="330" width="190" height="84" rx="16" class="node" stroke="#FFB547"/>
+  <rect x="1354" y="350.0" width="44" height="44" rx="12" fill="#FFB547"/><use href="#i-bell" x="1364" y="360.0" width="24" height="24"/>
+  <text x="1410" y="358.0" class="nt">SNS orders</text>
+  <text x="1410" y="377.0" class="ns">new-order alert</text>
+  <text x="1410" y="393.0" class="ns">to the baker</text>
+  <rect x="1340" y="480" width="190" height="84" rx="16" class="node" stroke="#7C7FA8"/>
+  <rect x="1354" y="500.0" width="44" height="44" rx="12" fill="#7C7FA8"/><use href="#i-queue" x="1364" y="510.0" width="24" height="24"/>
+  <text x="1410" y="508.0" class="nt">SQS DLQ</text>
+  <text x="1410" y="527.0" class="ns">failed emails</text>
+  <text x="1410" y="543.0" class="ns">kept 14 days</text>
+  <rect x="850" y="640" width="200" height="70" rx="16" class="node" stroke="#7C7FA8"/>
+  <rect x="864" y="653.0" width="44" height="44" rx="12" fill="#7C7FA8"/><use href="#i-coin" x="874" y="663.0" width="24" height="24"/>
+  <text x="920" y="669.0" class="nt">Budgets</text>
+  <text x="920" y="688.0" class="ns">monthly cost cap</text>
+  <rect x="1095" y="640" width="190" height="70" rx="16" class="node" stroke="#7C7FA8"/>
+  <rect x="1109" y="653.0" width="44" height="44" rx="12" fill="#7C7FA8"/><use href="#i-bell" x="1119" y="663.0" width="24" height="24"/>
+  <text x="1165" y="669.0" class="nt">Ops alerts</text>
+  <text x="1165" y="688.0" class="ns">SNS, by email</text>
+  <rect x="1340" y="640" width="190" height="70" rx="16" class="node" stroke="#7C7FA8"/>
+  <rect x="1354" y="653.0" width="44" height="44" rx="12" fill="#7C7FA8"/><use href="#i-chart" x="1364" y="663.0" width="24" height="24"/>
+  <text x="1410" y="669.0" class="nt">CloudWatch</text>
+  <text x="1410" y="688.0" class="ns">logs and alarms</text>
+  <path d="M256 228 C286 228 290 218 314 218" fill="none" stroke="#2EC5FF" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#a-sky)"/>
+  <text x="270" y="206" class="lbl" fill="#2EC5FF">DNS</text>
+  <path d="M256 330 C292 330 286 366 318 366" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <path d="M256 560 C296 560 286 390 318 390" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <rect x="257" y="455" width="57" height="22" rx="11" fill="#14153A"/><text x="268" y="470" class="lbl" fill="#A9ABD0">HTTPS</text>
+  <path d="M256 655 H613" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <rect x="429" y="630" width="134" height="22" rx="11" fill="#14153A"/><text x="440" y="645" class="lbl" fill="#9D8FFF">sign in with MFA</text>
+  <path d="M420 486 V416" fill="none" stroke="#7C7FA8" stroke-width="2" stroke-dasharray="3 4"/>
+  <text x="430" y="456" class="lbl" fill="#7C7FA8">certificate</text>
+  <path d="M520 358 C568 358 566 242 613 242" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <rect x="506.0" y="277" width="120" height="22" rx="11" fill="#14153A"/><text x="566" y="292" text-anchor="middle" class="lbl" fill="#2EC5FF">/ and /admin/*</text>
+  <path d="M520 384 C566 384 566 380 613 380" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <rect x="534.0" y="395" width="64" height="22" rx="11" fill="#14153A"/><text x="566" y="410" text-anchor="middle" class="lbl" fill="#2EC5FF">/api/*</text>
+  <path d="M710 598 V416" fill="none" stroke="#9D8FFF" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#a-violet)"/>
+  <text x="720" y="520" class="lbl" fill="#9D8FFF">issues JWT</text>
+  <path d="M805 372 C826 372 826 267 848 267" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <path d="M805 372 C826 372 826 347 848 347" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <path d="M805 372 C826 372 826 427 848 427" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <path d="M805 372 C826 372 826 507 848 507" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <path d="M1050 267 C1072 267 1072 372 1093 372" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <path d="M1050 347 C1072 347 1072 372 1093 372" fill="none" stroke="#2EC5FF" stroke-width="2" marker-end="url(#a-sky)"/>
+  <path d="M1050 427 C1072 427 1072 372 1093 372" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <path d="M1050 507 C1072 507 1072 372 1093 372" fill="none" stroke="#9D8FFF" stroke-width="2" marker-end="url(#a-violet)"/>
+  <circle cx="1072" cy="352" r="13" fill="#B8F23A"/><text x="1072" y="356.5" text-anchor="middle" class="step">1</text>
+  <rect x="1089" y="303" width="99" height="22" rx="11" fill="#14153A"/><text x="1100" y="318" class="lbl" fill="#B8F23A">write order</text>
+  <path d="M1190 414 V478" fill="none" stroke="#FFB547" stroke-width="2" marker-end="url(#a-mango)"/>
+  <circle cx="1190" cy="446" r="13" fill="#FFB547"/><text x="1190" y="450.5" text-anchor="middle" class="step">2</text>
+  <text x="1210" y="451" class="lbl" fill="#FFB547">stream</text>
+  <path d="M1285 500 C1316 500 1310 250 1338 250" fill="none" stroke="#FF6B6B" stroke-width="2" marker-end="url(#a-coral)"/>
+  <circle cx="1312" cy="300" r="13" fill="#FF6B6B"/><text x="1312" y="304.5" text-anchor="middle" class="step">3</text>
+  <path d="M1285 512 C1318 512 1314 384 1338 384" fill="none" stroke="#FFB547" stroke-width="2" marker-end="url(#a-mango)"/>
+  <circle cx="1318" cy="440" r="13" fill="#FFB547"/><text x="1318" y="444.5" text-anchor="middle" class="step">4</text>
+  <path d="M1285 540 H1338" fill="none" stroke="#7C7FA8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a-grey)"/>
+  <text x="1312" y="580" text-anchor="middle" class="lbl" fill="#7C7FA8">after retries</text>
+  <path d="M1435 564 V638" fill="none" stroke="#7C7FA8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a-grey)"/>
+  <path d="M1340 675 H1287" fill="none" stroke="#7C7FA8" stroke-width="2" marker-end="url(#a-grey)"/>
+  <path d="M1050 675 H1093" fill="none" stroke="#7C7FA8" stroke-width="2" marker-end="url(#a-grey)"/>
+  <text x="56" y="772" class="lbl" fill="#B8F23A">No card details anywhere</text><text x="56" y="794" class="ns">Payment is taken in person on collection,</text><text x="56" y="810" class="ns">so the site never handles card data.</text>
+  <g transform="translate(56 840)"><circle cx="8" cy="0" r="6" fill="#2EC5FF"/><text x="22" y="4.5" class="ns">public shop</text><circle cx="130.6" cy="0" r="6" fill="#9D8FFF"/><text x="144.6" y="4.5" class="ns">admin portal</text><circle cx="259.79999999999995" cy="0" r="6" fill="#B8F23A"/><text x="273.79999999999995" y="4.5" class="ns">order data</text><circle cx="375.79999999999995" cy="0" r="6" fill="#FF6B6B"/><text x="389.79999999999995" y="4.5" class="ns">customer email</text><circle cx="518.1999999999999" cy="0" r="6" fill="#FFB547"/><text x="532.1999999999999" y="4.5" class="ns">baker alerts</text><circle cx="647.3999999999999" cy="0" r="6" fill="#7C7FA8"/><text x="661.3999999999999" y="4.5" class="ns">operations</text><path d="M755.3999999999999 0 h30" stroke="#A9ABD0" stroke-width="1.5" stroke-dasharray="6 5"/><text x="795.3999999999999" y="4.5" class="ns">failure path</text></g>
+</svg>

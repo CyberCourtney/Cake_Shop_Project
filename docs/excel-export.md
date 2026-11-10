@@ -67,20 +67,7 @@ That way, a printed copy can always be traced to what it contains.
 
 ## 3. How it works
 
-```mermaid
-sequenceDiagram
-    actor A as the baker
-    participant API as HTTP API (JWT)
-    participant X as admin-export Lambda
-    participant DDB as DynamoDB
-    A->>API: GET /api/admin/exports/orders.xlsx?collectionDate=2026-12-23&status=CONFIRMED
-    API->>X: invoke (token verified)
-    X->>DDB: Query GSI1 (season, date prefix)
-    X->>X: Apply filters, sort by date then ref
-    X->>X: Build workbook with exceljs (in memory)
-    X-->>API: 200, base64 body, isBase64Encoded: true<br/>Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet<br/>Content-Disposition: attachment (filename)
-    API-->>A: Browser downloads the file
-```
+![Sequence of the Excel export](diagrams/excel-export.svg)
 
 - **Library:** [`exceljs`](https://github.com/exceljs/exceljs). It is MIT-licensed, widely used,
   writes real `.xlsx` files and supports styles, number formats, freeze panes and

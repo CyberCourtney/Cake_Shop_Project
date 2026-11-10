@@ -7,15 +7,7 @@
 
 ## Overview
 
-```mermaid
-flowchart LR
-    P1["Phase 1<br/>Discovery and<br/>architecture"] --> G1{{Approval}}
-    G1 --> P2["Phase 2<br/>Infrastructure<br/>(CloudFormation)"] --> G2{{"Approval<br/>+ OK to deploy dev"}}
-    G2 --> P3["Phase 3<br/>Application"] --> G3{{Approval}}
-    G3 --> P4["Phase 4<br/>Email"] --> G4{{Approval}}
-    G4 --> P5["Phase 5<br/>Testing and<br/>security"] --> G5{{"Approval<br/>+ OK to deploy prod"}}
-    G5 --> P6["Phase 6<br/>Production and<br/>handover"]
-```
+![Six delivery phases with approval gates](diagrams/delivery-plan.svg)
 
 | Phase | Main deliverables | AWS cost incurred? | Exit criteria |
 |---|---|---|---|

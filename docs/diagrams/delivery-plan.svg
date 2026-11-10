@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 420" width="1600" height="420" role="img" aria-labelledby="t d">
+  <title id="t">Delivery plan</title>
+  <desc id="d">Six phases, each ending in an approval gate. Dev deploys after phase 2 is approved and production after phase 5.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14153A"/><stop offset="1" stop-color="#0F1024"/></linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6C5CE7"/><stop offset="1" stop-color="#FF6B6B"/></linearGradient>
+    <radialGradient id="glow1" cx="0.85" cy="0.1" r="0.5"><stop offset="0" stop-color="#6C5CE7" stop-opacity="0.28"/><stop offset="1" stop-color="#6C5CE7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow2" cx="0.05" cy="0.95" r="0.45"><stop offset="0" stop-color="#FF6B6B" stop-opacity="0.18"/><stop offset="1" stop-color="#FF6B6B" stop-opacity="0"/></radialGradient>
+    <marker id="a-sky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#2EC5FF"/></marker>
+    <marker id="a-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#9D8FFF"/></marker>
+    <marker id="a-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#FF6B6B"/></marker>
+    <marker id="a-mango" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#FFB547"/></marker>
+    <marker id="a-lime" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#B8F23A"/></marker>
+    <marker id="a-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#7C7FA8"/></marker>
+    <marker id="a-mist" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#A9ABD0"/></marker>
+    <marker id="a-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#6C5CE7"/></marker>
+    <symbol id="i-globe" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></g></symbol>
+    <symbol id="i-bucket" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="2.6"/><path d="M4 6l2 13c.3 1.4 2.9 2.4 6 2.4s5.7-1 6-2.4L20 6"/></g></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4 4.3-6 8-6s6.8 2 8 6"/></g></symbol>
+    <symbol id="i-api" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3"/><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3"/></g></symbol>
+    <symbol id="i-lambda" viewBox="0 0 24 24"><path d="M5 21l6-11-3-6H5V3h4.5l9 16.5H21V21h-3.5L13 12.5 8.3 21z" fill="#0F1024"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2"><ellipse cx="12" cy="5.5" rx="8" ry="2.8"/><path d="M4 5.5v13c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8v-13"/><path d="M4 12c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8"/></g></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></g><circle cx="12" cy="15.5" r="1.6" fill="#0F1024"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 6.5l8.5 7 8.5-7"/></g></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></g></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="16" height="4.5" rx="1.5"/><rect x="4" y="10" width="16" height="4.5" rx="1.5"/><rect x="4" y="16" width="16" height="4.5" rx="1.5"/></g></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 8.5c-.6-.9-1.5-1.3-2.5-1.3-1.6 0-2.7.9-2.7 2.1 0 2.9 5.6 1.6 5.6 4.6 0 1.3-1.2 2.2-2.9 2.2-1.1 0-2.1-.5-2.7-1.4M12 5.5v1.7M12 16.8v1.7"/></g></symbol>
+    <symbol id="i-sign" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3v18"/><path d="M5 6h11l3 2.5-3 2.5H5z"/><path d="M19 13H8l-3 2.5L8 18h11z"/></g></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2.5 19h19l-2-4h-15z"/></g></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></g></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></g></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M3 7.5l9-4.5 9 4.5v9l-9 4.5-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#0F1024" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cake" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 21h16M5 21v-7h14v7"/><path d="M5 17c2 1.5 3.5 1.5 4.7 0s2.6-1.5 4.6 0 3.5 1.5 4.7 0"/><path d="M12 14V9"/><path d="M12 6.5c-1-1.2-1-2.4 0-3.5 1 1.1 1 2.3 0 3.5z"/></g></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></g></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="#0F1024" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></g></symbol>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .h1 { font-size: 30px; font-weight: 800; fill: #FFFFFF; letter-spacing: -0.5px; }
+    .h2 { font-size: 15px; fill: #A9ABD0; }
+    .nt { font-size: 16px; font-weight: 700; fill: #FFFFFF; }
+    .ns { font-size: 12px; fill: #A9ABD0; }
+    .zone { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; fill: #A9ABD0; }
+    .lbl { font-size: 12px; font-weight: 600; }
+    .step { font-size: 12px; font-weight: 800; fill: #0F1024; }
+    .node { fill: #1B1C42; stroke-width: 1.5; }
+  </style>
+  <rect width="1600" height="420" rx="28" fill="url(#bg)"/>
+  <rect width="1600" height="420" rx="28" fill="url(#glow1)"/>
+  <rect width="1600" height="420" rx="28" fill="url(#glow2)"/>
+  <rect x="56" y="38" width="44" height="6" rx="3" fill="#6C5CE7"/>
+  <text x="56" y="80" class="h1">Six phases, each signed off</text>
+  <text x="56" y="108" class="h2">Nothing moves on without an approval, and nothing reaches AWS without an explicit go-ahead.</text>
+    <rect x="56" y="180" width="196" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="70" y="200.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-search" x="80" y="210.0" width="24" height="24"/>
+  <text x="126" y="216.0" class="nt">Discovery</text>
+  <text x="126" y="235.0" class="ns">and architecture</text>
+  <circle cx="246" cy="186" r="13" fill="#2EC5FF"/><text x="246" y="190.5" text-anchor="middle" class="step">1</text>
+  <path d="M252 222 H264" fill="none" stroke="#A9ABD0" stroke-width="2"/>
+  <rect x="266" y="210" width="24" height="24" rx="5" transform="rotate(45 278 222)" fill="#B8F23A"/><use href="#i-check" x="269" y="213" width="18" height="18"/>
+  <path d="M292 222 H302" fill="none" stroke="#A9ABD0" stroke-width="2" marker-end="url(#a-mist)"/>
+  <rect x="304" y="180" width="196" height="84" rx="16" class="node" stroke="#9D8FFF"/>
+  <rect x="318" y="200.0" width="44" height="44" rx="12" fill="#9D8FFF"/><use href="#i-layers" x="328" y="210.0" width="24" height="24"/>
+  <text x="374" y="216.0" class="nt">Infrastructure</text>
+  <text x="374" y="235.0" class="ns">CloudFormation</text>
+  <circle cx="494" cy="186" r="13" fill="#9D8FFF"/><text x="494" y="190.5" text-anchor="middle" class="step">2</text>
+  <path d="M500 222 H512" fill="none" stroke="#A9ABD0" stroke-width="2"/>
+  <rect x="514" y="210" width="24" height="24" rx="5" transform="rotate(45 526 222)" fill="#B8F23A"/><use href="#i-check" x="517" y="213" width="18" height="18"/>
+  <path d="M540 222 H550" fill="none" stroke="#A9ABD0" stroke-width="2" marker-end="url(#a-mist)"/>
+  <rect x="552" y="180" width="196" height="84" rx="16" class="node" stroke="#FFB547"/>
+  <rect x="566" y="200.0" width="44" height="44" rx="12" fill="#FFB547"/><use href="#i-laptop" x="576" y="210.0" width="24" height="24"/>
+  <text x="622" y="216.0" class="nt">Application</text>
+  <text x="622" y="235.0" class="ns">shop and admin</text>
+  <circle cx="742" cy="186" r="13" fill="#FFB547"/><text x="742" y="190.5" text-anchor="middle" class="step">3</text>
+  <path d="M748 222 H760" fill="none" stroke="#A9ABD0" stroke-width="2"/>
+  <rect x="762" y="210" width="24" height="24" rx="5" transform="rotate(45 774 222)" fill="#B8F23A"/><use href="#i-check" x="765" y="213" width="18" height="18"/>
+  <path d="M788 222 H798" fill="none" stroke="#A9ABD0" stroke-width="2" marker-end="url(#a-mist)"/>
+  <rect x="800" y="180" width="196" height="84" rx="16" class="node" stroke="#FF6B6B"/>
+  <rect x="814" y="200.0" width="44" height="44" rx="12" fill="#FF6B6B"/><use href="#i-mail" x="824" y="210.0" width="24" height="24"/>
+  <text x="870" y="216.0" class="nt">Email</text>
+  <text x="870" y="235.0" class="ns">SES and SNS</text>
+  <circle cx="990" cy="186" r="13" fill="#FF6B6B"/><text x="990" y="190.5" text-anchor="middle" class="step">4</text>
+  <path d="M996 222 H1008" fill="none" stroke="#A9ABD0" stroke-width="2"/>
+  <rect x="1010" y="210" width="24" height="24" rx="5" transform="rotate(45 1022 222)" fill="#B8F23A"/><use href="#i-check" x="1013" y="213" width="18" height="18"/>
+  <path d="M1036 222 H1046" fill="none" stroke="#A9ABD0" stroke-width="2" marker-end="url(#a-mist)"/>
+  <rect x="1048" y="180" width="196" height="84" rx="16" class="node" stroke="#B8F23A"/>
+  <rect x="1062" y="200.0" width="44" height="44" rx="12" fill="#B8F23A"/><use href="#i-shield" x="1072" y="210.0" width="24" height="24"/>
+  <text x="1118" y="216.0" class="nt">Testing</text>
+  <text x="1118" y="235.0" class="ns">and security</text>
+  <circle cx="1238" cy="186" r="13" fill="#B8F23A"/><text x="1238" y="190.5" text-anchor="middle" class="step">5</text>
+  <path d="M1244 222 H1256" fill="none" stroke="#A9ABD0" stroke-width="2"/>
+  <rect x="1258" y="210" width="24" height="24" rx="5" transform="rotate(45 1270 222)" fill="#B8F23A"/><use href="#i-check" x="1261" y="213" width="18" height="18"/>
+  <path d="M1284 222 H1294" fill="none" stroke="#A9ABD0" stroke-width="2" marker-end="url(#a-mist)"/>
+  <rect x="1296" y="180" width="196" height="84" rx="16" class="node" stroke="#2EC5FF"/>
+  <rect x="1310" y="200.0" width="44" height="44" rx="12" fill="#2EC5FF"/><use href="#i-flag" x="1320" y="210.0" width="24" height="24"/>
+  <text x="1366" y="216.0" class="nt">Production</text>
+  <text x="1366" y="235.0" class="ns">and handover</text>
+  <circle cx="1486" cy="186" r="13" fill="#2EC5FF"/><text x="1486" y="190.5" text-anchor="middle" class="step">6</text>
+  <text x="526" y="300" text-anchor="middle" class="lbl" fill="#B8F23A">+ OK to deploy dev</text>
+  <text x="1270" y="300" text-anchor="middle" class="lbl" fill="#B8F23A">+ OK to deploy prod</text>
+  <path d="M500 262 V284" stroke="#B8F23A" stroke-width="1.5" stroke-dasharray="3 4"/><path d="M1244 262 V284" stroke="#B8F23A" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <g transform="translate(56 380)"><circle cx="8" cy="0" r="6" fill="#B8F23A"/><text x="22" y="4.5" class="ns">approval gate</text></g>
+</svg>

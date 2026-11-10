@@ -25,25 +25,7 @@
 > CloudFront distribution, because its callback URL depends on the distribution's domain. See
 > [decisions.md](decisions.md).
 
-```mermaid
-flowchart TB
-    subgraph USE1["us-east-1"]
-        EDGE["kvc-<env>-edge<br/>ACM certificate (DNS-validated)<br/>(optional) WAF web ACL"]
-    end
-    subgraph EUW2["eu-west-2"]
-        BOOT["kvc-bootstrap<br/>Artifacts bucket<br/>(one per account/region)"]
-        ROOT["kvc-<env> (root)"]
-        ROOT --> DATA["data<br/>DynamoDB table"]
-        ROOT --> AUTH["auth<br/>Cognito user pool, client,<br/>domain, admins group, admin user"]
-        ROOT --> MSG["messaging<br/>SNS topics + subscriptions,<br/>SES identity + config set,<br/>DKIM/SPF/DMARC records, SQS DLQ"]
-        ROOT --> APIGW["api-gateway<br/>bare HTTP API (breaks a cycle)"]
-        ROOT --> APP["backend<br/>5 Lambdas + IAM roles + log groups,<br/>Cognito app client, routes, JWT authorizer,<br/>stage, stream event source mapping"]
-        ROOT --> WEB["frontend<br/>Site bucket + policy, OAC,<br/>CloudFront distribution, function,<br/>response headers policy, Route 53 aliases"]
-        ROOT --> MON["monitoring<br/>CloudWatch alarms, Budget"]
-    end
-    BOOT -. "templates + Lambda zips" .-> ROOT
-    EDGE -. "CertificateArn (parameter)" .-> ROOT
-```
+![CloudFormation stacks and their dependencies](diagrams/stacks.svg)
 
 | Stack | Region | Lifecycle | Contents |
 |---|---|---|---|

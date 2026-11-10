@@ -29,22 +29,7 @@ It uses no SAM, CDK or Terraform. For how to run it, see
 
 ## Stack dependencies
 
-```mermaid
-flowchart LR
-    BOOT[kvc-bootstrap<br/>artifacts bucket] -.->|zips and templates| ROOT
-    EDGE["kvc-env-edge (us-east-1)<br/>only with a domain"] -.->|"CertificateArn, WebAclArn (via deploy.sh)"| ROOT
-    subgraph ROOT[kvc-env root stack]
-        DATA[data] --> BACK
-        AUTH[auth] --> FRONT
-        AUTH --> BACK
-        MSG[messaging] --> BACK
-        MSG --> MON
-        APIGW[api-gateway] --> FRONT
-        APIGW --> BACK
-        FRONT[frontend] -->|SiteUrl| BACK
-        BACK[backend] --> MON[monitoring]
-    end
-```
+![CloudFormation stacks and their dependencies](../../docs/diagrams/stacks.svg)
 
 **Why `api-gateway` is separate (the cycle):**
 

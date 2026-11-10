@@ -4,70 +4,7 @@
 
 ## 1. Architecture diagram
 
-```mermaid
-flowchart LR
-    subgraph Users
-        C[Customer<br/>phone / tablet / desktop]
-        A[Administrator<br/>the baker]
-    end
-
-    subgraph Edge["Global services (certificate lives in us-east-1)"]
-        R53[Route 53<br/>hosted zone]
-        ACM[ACM certificate<br/>us-east-1]
-        CF[CloudFront distribution<br/>HTTPS, security headers]
-    end
-
-    subgraph London["eu-west-2 (London)"]
-        S3[(S3 site bucket<br/>private, OAC)]
-        API[API Gateway<br/>HTTP API<br/>throttling]
-        COG[Cognito user pool<br/>admin only, MFA]
-
-        subgraph Lambdas["Lambda (Node.js, arm64)"]
-            L1[public-catalogue]
-            L2[public-create-order]
-            L3[admin-api]
-            L4[admin-export]
-            L5[notifier]
-        end
-
-        DDB[(DynamoDB table<br/>on-demand, PITR,<br/>Streams)]
-        SES[SES<br/>customer email]
-        SNS[SNS topic<br/><BusinessName>OrderNotifications]
-        DLQ[(SQS dead-letter queue)]
-        CW[CloudWatch<br/>logs, alarms]
-        OPS[SNS topic<br/>ops alerts]
-        BUD[AWS Budgets]
-    end
-
-    C -->|DNS| R53
-    A -->|DNS| R53
-    C -->|HTTPS| CF
-    A -->|HTTPS| CF
-    ACM -.certificate.- CF
-    CF -->|"/ and /admin/*"| S3
-    CF -->|"/api/*"| API
-    A -->|sign in, PKCE| COG
-    API -->|"public routes"| L1
-    API -->|"public routes"| L2
-    API -->|"JWT authorizer"| L3
-    API -->|"JWT authorizer"| L4
-    COG -.issues JWT.- API
-    L1 --> DDB
-    L2 -->|"1. write order"| DDB
-    L3 --> DDB
-    L4 --> DDB
-    DDB -->|"2. stream INSERT"| L5
-    L5 -->|"3a. acknowledgement"| SES
-    L5 -->|"3b. publish"| SNS
-    L5 -->|"record result"| DDB
-    L5 -->|"after retries"| DLQ
-    SNS -->|email| M1[the baker's inbox]
-    SNS -->|email| M2[Son's inbox]
-    SES -->|email| C
-    DLQ --> CW
-    CW --> OPS
-    BUD --> OPS
-```
+![Architecture: CloudFront, S3, API Gateway, Lambda, DynamoDB, SES and SNS](diagrams/architecture.svg)
 
 The main ideas in the diagram:
 
@@ -109,24 +46,7 @@ chosen and what was rejected.
 
 Fulfilment and payment are **two independent fields**, as the brief requires.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    state "Fulfilment status" as F {
-        [*] --> New
-        New --> Confirmed
-        Confirmed --> ReadyForCollection: Ready for collection
-        ReadyForCollection --> Collected
-        New --> Cancelled
-        Confirmed --> Cancelled
-        ReadyForCollection --> Cancelled
-    }
-    state "Payment status" as P {
-        [*] --> AwaitingPayment
-        AwaitingPayment --> Paid
-        Paid --> Refunded
-    }
-```
+![Order fulfilment and payment statuses](diagrams/order-status.svg)
 
 The rules are enforced in `admin-api`, not only in the UI:
 
@@ -141,38 +61,7 @@ The rules are enforced in `admin-api`, not only in the UI:
 
 ## 5. Customer ordering workflow
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor C as Customer
-    participant CF as CloudFront
-    participant API as HTTP API
-    participant CAT as public-catalogue
-    participant ORD as public-create-order
-    participant DDB as DynamoDB
-
-    C->>CF: Visit site (static React app from S3)
-    C->>CF: GET /api/catalogue
-    CF->>API: (cache miss only, 60 s TTL)
-    API->>CAT: invoke
-    CAT->>DDB: Query CATALOGUE, CONFIG and SEASON items
-    CAT-->>C: products, prices, open dates, deadline
-    Note over C: Choose cake, variant, quantity<br/>Enter name, email, phone<br/>Pick collection date, add notes<br/>Review order and total
-    C->>API: POST /api/orders {lines, customer, date, idempotencyKey}
-    API->>ORD: invoke (throttled: low rate, small burst)
-    ORD->>ORD: Validate schema, honeypot, field formats
-    ORD->>DDB: Read current prices, season, date capacity
-    ORD->>ORD: Recalculate totals server-side<br/>(client total is ignored)
-    ORD->>DDB: TransactWriteItems:<br/>Put ORDER (if ref not taken)<br/>Put IDEMPOTENCY key (if new)<br/>Update collection-date counter (if under capacity)<br/>Update per-email rate counter (if under limit)
-    alt success
-        ORD-->>C: 201 {orderRef: "KV-7K3QXM", total, status: "received"}
-        Note over C: Confirmation page:<br/>"Order received, not yet confirmed.<br/>Payment is made in person on collection."
-    else same idempotencyKey seen before
-        ORD-->>C: 200 with the original orderRef (no duplicate order)
-    else date full / past deadline / invalid
-        ORD-->>C: 4xx with a plain-English reason
-    end
-```
+![Sequence of a customer placing an order](diagrams/order-journey.svg)
 
 Key points:
 
@@ -199,33 +88,7 @@ Key points:
 
 ## 6. Administrator workflow
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor A as the baker
-    participant CF as CloudFront (/admin/)
-    participant COG as Cognito managed login
-    participant API as HTTP API (JWT authorizer)
-    participant ADM as admin-api / admin-export
-    participant DDB as DynamoDB
-
-    A->>CF: Open /admin/
-    CF-->>A: Admin app (static files, no data)
-    A->>COG: Redirect to sign-in (Authorization Code + PKCE)
-    A->>COG: Email + password + MFA code
-    COG-->>A: Tokens (kept in memory, short-lived)
-    A->>API: GET /api/admin/dashboard (Bearer token)
-    API->>API: Verify signature, expiry, audience, group "admins"
-    API->>ADM: invoke
-    ADM->>DDB: Query season orders
-    ADM-->>A: Tiles: total, new, confirmed, upcoming,<br/>awaiting payment, completed, value, outstanding
-    A->>API: Search / filter / open order
-    A->>API: PATCH status: Confirmed
-    ADM->>DDB: Update with version check, append history
-    Note over ADM,DDB: Stream MODIFY event → notifier sends<br/>"order confirmed" email (if Q9 approved)
-    A->>API: GET exports/orders.xlsx?collectionDate=2026-12-23
-    ADM-->>A: .xlsx download
-```
+![Sequence of the baker using the admin portal](diagrams/admin-flow.svg)
 
 Design notes for the baker's usability:
 
@@ -244,31 +107,7 @@ Design notes for the baker's usability:
 > **Deferred (D3):** the email approach will be revisited once there is a domain. The
 > customer email starts switched off. See [decisions.md](decisions.md).
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant DDB as DynamoDB Stream
-    participant N as notifier Lambda
-    participant SES as Amazon SES
-    actor C as Customer
-    participant Q as SQS DLQ
-    participant CW as CloudWatch
-
-    DDB->>N: INSERT of ORDER item (filtered event)
-    N->>N: Build HTML + text email from template
-    N->>SES: SendEmail (From: orders@domain,<br/>Reply-To: public business address)
-    alt sent
-        N->>DDB: customerEmail.status = SENT, messageId
-    else SES error
-        N->>DDB: customerEmail.status = FAILED, error code
-        N-->>DDB: throw → Lambda retries the batch
-        Note over N: Up to 3 retries with backoff,<br/>bisect-on-error
-        N->>Q: still failing → record sent to DLQ
-        Q->>CW: Alarm: messages visible > 0
-    end
-    SES-->>C: Acknowledgement email
-    SES->>CW: Bounce / complaint events (configuration set)
-```
+![Sequence of the customer email, with retries and the dead-letter queue](diagrams/customer-email.svg)
 
 The **content** of the acknowledgement covers everything the brief lists. The wording makes
 the received/accepted distinction explicit:
@@ -296,19 +135,7 @@ Other details:
 
 ## 8. Internal notification workflow (SNS)
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant N as notifier Lambda
-    participant T as SNS topic<br/><BusinessName>OrderNotifications
-    actor M as the baker
-    actor S as Son
-
-    N->>T: Publish (subject: "New order KV-7K3QXM – 23 Dec")
-    T->>M: Email (identical)
-    T->>S: Email (identical)
-    N->>N: internalNotify.status = SENT / FAILED (same retry + DLQ path)
-```
+![Sequence of the new-order alert through SNS](diagrams/internal-alerts.svg)
 
 - **The topic** is `<BusinessName>OrderNotifications` in prod. Other environments get a suffix,
   for example `<BusinessName>OrderNotifications-dev`, so they never clash. It is encrypted with
