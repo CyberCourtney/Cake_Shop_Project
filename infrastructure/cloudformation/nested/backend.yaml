@@ -1,0 +1,694 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Backend. Five Lambda functions (one IAM role each), their log groups,
+  the Cognito app client and managed-login branding, the HTTP API routes, JWT authorizer
+  and stage, and the DynamoDB Stream trigger for the notifier.
+
+Parameters:
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  BusinessDisplayName:
+    Type: String
+  BakerName:
+    Type: String
+  ArtifactsBucketName:
+    Type: String
+  CodeVersion:
+    Type: String
+    Description: Folder under lambda/ in the artifacts bucket holding this release's zips.
+  TableName:
+    Type: String
+  TableArn:
+    Type: String
+  TableStreamArn:
+    Type: String
+  OrderTopicArn:
+    Type: String
+  NotifierDlqArn:
+    Type: String
+  UserPoolId:
+    Type: String
+  IssuerUrl:
+    Type: String
+  HttpApiId:
+    Type: String
+  SiteUrl:
+    Type: String
+    Description: Public site URL, used for the Cognito callback and sign-out URLs.
+  OriginVerifySecret:
+    Type: String
+    NoEcho: true
+  LogRetentionDays:
+    Type: Number
+  CustomerEmailEnabled:
+    Type: String
+    AllowedValues: ["true", "false"]
+  SesFromAddress:
+    Type: String
+    Default: ""
+  SesIdentityArn:
+    Type: String
+    Default: ""
+  SesConfigurationSetName:
+    Type: String
+    Default: ""
+  CreateOrderReservedConcurrency:
+    Type: Number
+    MinValue: 0
+
+Conditions:
+  IsDev: !Equals [!Ref Environment, dev]
+  CanSendCustomerEmail: !And
+    - !Equals [!Ref CustomerEmailEnabled, "true"]
+    - !Not [!Equals [!Ref SesIdentityArn, ""]]
+  HasReservedConcurrency: !Not [!Equals [!Ref CreateOrderReservedConcurrency, 0]]
+
+Resources:
+  # ===========================================================================
+  # Log groups are created here (not by Lambda on first run) so that retention is
+  # enforced and the roles need no logs:CreateLogGroup permission.
+  # ===========================================================================
+  CatalogueLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${Environment}-public-catalogue"
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: DataClassification
+          Value: internal
+  CreateOrderLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${Environment}-public-create-order"
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: DataClassification
+          Value: internal
+  AdminApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${Environment}-admin-api"
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: DataClassification
+          Value: internal
+  AdminExportLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${Environment}-admin-export"
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: DataClassification
+          Value: internal
+  NotifierLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${Environment}-notifier"
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: DataClassification
+          Value: internal
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${ProjectName}-${Environment}-api"
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: DataClassification
+          Value: internal
+
+  # ===========================================================================
+  # IAM roles - one per function, scoped to exact resources. DynamoDB access for the
+  # public functions is further limited by partition-key prefix (dynamodb:LeadingKeys),
+  # so a bug in public code cannot read customer orders.
+  # ===========================================================================
+  CatalogueRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: public-catalogue - read catalogue, settings and season items only.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: least-privilege
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: WriteOwnLogs
+                Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt CatalogueLogGroup.Arn
+              - Sid: ReadPublicPartitionsOnly
+                Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:Query]
+                Resource: !Ref TableArn
+                Condition:
+                  ForAllValues:StringLike:
+                    dynamodb:LeadingKeys: [CATALOGUE, CONFIG, "SEASON#*"]
+
+  CreateOrderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: public-create-order - read prices/settings, conditionally write new orders.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: least-privilege
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: WriteOwnLogs
+                Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt CreateOrderLogGroup.Arn
+              - Sid: ReadPricesSettingsAndIdempotencyKeys
+                Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:Query]
+                Resource: !Ref TableArn
+                Condition:
+                  ForAllValues:StringLike:
+                    dynamodb:LeadingKeys: [CATALOGUE, CONFIG, "SEASON#*", "IDEMP#*"]
+              - Sid: CreateOrderAndIdempotencyRecords
+                Effect: Allow
+                Action: [dynamodb:PutItem]
+                Resource: !Ref TableArn
+                Condition:
+                  ForAllValues:StringLike:
+                    dynamodb:LeadingKeys: ["ORDER#*", "IDEMP#*"]
+              - Sid: UpdateCapacityAndRateCounters
+                Effect: Allow
+                Action: [dynamodb:UpdateItem, dynamodb:ConditionCheckItem]
+                Resource: !Ref TableArn
+                Condition:
+                  ForAllValues:StringLike:
+                    dynamodb:LeadingKeys: ["SEASON#*", "RATE#*"]
+
+  AdminApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: admin-api - manage orders, products and settings.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: least-privilege
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: WriteOwnLogs
+                Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt AdminApiLogGroup.Arn
+              - Sid: ManageTableItems
+                Effect: Allow
+                # No DeleteItem: erasure anonymises; deletion is left to TTL.
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:ConditionCheckItem
+                Resource:
+                  - !Ref TableArn
+                  - !Sub "${TableArn}/index/gsi1"
+              - Sid: CheckInternalSubscribersHealth
+                Effect: Allow
+                Action: sns:ListSubscriptionsByTopic
+                Resource: !Ref OrderTopicArn
+
+  AdminExportRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: admin-export - read-only access to orders for Excel export.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: least-privilege
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: WriteOwnLogs
+                Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt AdminExportLogGroup.Arn
+              - Sid: ReadOrders
+                Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:Query]
+                Resource:
+                  - !Ref TableArn
+                  - !Sub "${TableArn}/index/gsi1"
+
+  NotifierRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: notifier - read the table stream, send notifications, record results.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: least-privilege
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: WriteOwnLogs
+                Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt NotifierLogGroup.Arn
+              - Sid: ReadTableStream
+                Effect: Allow
+                Action:
+                  - dynamodb:DescribeStream
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:ListStreams
+                Resource: !Ref TableStreamArn
+              - Sid: RecordNotificationResultsOnOrders
+                Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:UpdateItem]
+                Resource: !Ref TableArn
+                Condition:
+                  ForAllValues:StringLike:
+                    dynamodb:LeadingKeys: ["ORDER#*"]
+              - Sid: ReadCatalogueForEmailContent
+                Effect: Allow
+                Action: [dynamodb:GetItem]
+                Resource: !Ref TableArn
+                Condition:
+                  ForAllValues:StringLike:
+                    dynamodb:LeadingKeys: [CONFIG]
+              - Sid: PublishInternalNotification
+                Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref OrderTopicArn
+              - Sid: UseAwsManagedSnsKeyViaSnsOnly
+                Effect: Allow
+                Action: [kms:GenerateDataKey, kms:Decrypt]
+                Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub "sns.${AWS::Region}.amazonaws.com"
+                  ForAnyValue:StringEquals:
+                    kms:ResourceAliases: alias/aws/sns
+              - Sid: SendFailedRecordsToDlq
+                Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !Ref NotifierDlqArn
+              - !If
+                - CanSendCustomerEmail
+                - Sid: SendCustomerEmailFromVerifiedIdentityOnly
+                  Effect: Allow
+                  Action: [ses:SendEmail]
+                  Resource:
+                    - !Ref SesIdentityArn
+                    - !Sub "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/${SesConfigurationSetName}"
+                  Condition:
+                    StringEquals:
+                      ses:FromAddress: !Ref SesFromAddress
+                - !Ref AWS::NoValue
+
+  # ===========================================================================
+  # Lambda functions. Code is uploaded by scripts/deploy.sh to
+  # s3://<artifacts>/lambda/<CodeVersion>/<name>.zip; a new CodeVersion updates the code.
+  # ===========================================================================
+  CatalogueFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Environment}-public-catalogue"
+      Description: GET /api/catalogue - enabled products, prices, open collection dates.
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 10
+      Role: !GetAtt CatalogueRole.Arn
+      Code:
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: !Sub "lambda/${CodeVersion}/public-catalogue.zip"
+      LoggingConfig:
+        LogGroup: !Ref CatalogueLogGroup
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          ORIGIN_VERIFY_SECRET: !Ref OriginVerifySecret
+          BUSINESS_NAME: !Ref BusinessDisplayName
+          BAKER_NAME: !Ref BakerName
+          ENVIRONMENT: !Ref Environment
+          NODE_OPTIONS: --enable-source-maps
+
+  CreateOrderFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Environment}-public-create-order"
+      Description: POST /api/orders - validate, price server-side and store an order.
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 10
+      Role: !GetAtt CreateOrderRole.Arn
+      # Hard ceiling on concurrent executions = a hard ceiling on abuse cost.
+      ReservedConcurrentExecutions: !If [HasReservedConcurrency, !Ref CreateOrderReservedConcurrency, !Ref AWS::NoValue]
+      Code:
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: !Sub "lambda/${CodeVersion}/public-create-order.zip"
+      LoggingConfig:
+        LogGroup: !Ref CreateOrderLogGroup
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          ORIGIN_VERIFY_SECRET: !Ref OriginVerifySecret
+          ENVIRONMENT: !Ref Environment
+          CUSTOMER_EMAIL_ENABLED: !If [CanSendCustomerEmail, "true", "false"]
+          NODE_OPTIONS: --enable-source-maps
+
+  AdminApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Environment}-admin-api"
+      Description: /api/admin/* - dashboard, orders, products, settings.
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 15
+      Role: !GetAtt AdminApiRole.Arn
+      Code:
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: !Sub "lambda/${CodeVersion}/admin-api.zip"
+      LoggingConfig:
+        LogGroup: !Ref AdminApiLogGroup
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          ORDER_TOPIC_ARN: !Ref OrderTopicArn
+          ORIGIN_VERIFY_SECRET: !Ref OriginVerifySecret
+          ADMIN_GROUP: admins
+          ENVIRONMENT: !Ref Environment
+          NODE_OPTIONS: --enable-source-maps
+
+  AdminExportFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Environment}-admin-export"
+      Description: GET /api/admin/exports/* - build .xlsx workbooks.
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 20
+      Role: !GetAtt AdminExportRole.Arn
+      Code:
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: !Sub "lambda/${CodeVersion}/admin-export.zip"
+      LoggingConfig:
+        LogGroup: !Ref AdminExportLogGroup
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          ORIGIN_VERIFY_SECRET: !Ref OriginVerifySecret
+          ADMIN_GROUP: admins
+          BUSINESS_NAME: !Ref BusinessDisplayName
+          BAKER_NAME: !Ref BakerName
+          ENVIRONMENT: !Ref Environment
+          NODE_OPTIONS: --enable-source-maps
+
+  NotifierFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Environment}-notifier"
+      Description: DynamoDB Stream consumer - customer email (SES) and internal alert (SNS).
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 30
+      Role: !GetAtt NotifierRole.Arn
+      Code:
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: !Sub "lambda/${CodeVersion}/notifier.zip"
+      LoggingConfig:
+        LogGroup: !Ref NotifierLogGroup
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          ORDER_TOPIC_ARN: !Ref OrderTopicArn
+          BUSINESS_NAME: !Ref BusinessDisplayName
+          BAKER_NAME: !Ref BakerName
+          SITE_URL: !Ref SiteUrl
+          CUSTOMER_EMAIL_ENABLED: !If [CanSendCustomerEmail, "true", "false"]
+          SES_FROM_ADDRESS: !Ref SesFromAddress
+          SES_CONFIGURATION_SET: !Ref SesConfigurationSetName
+          ENVIRONMENT: !Ref Environment
+          NODE_OPTIONS: --enable-source-maps
+
+  # Stream trigger. Only new orders (INSERT) and orders explicitly flagged for a
+  # (re)send via the `pendingNotify` attribute reach the function. The notifier's own
+  # result writes remove `pendingNotify`, so they never re-trigger it (no loops).
+  # TTL deletions (REMOVE) are ignored.
+  NotifierStreamMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName: !Ref NotifierFunction
+      EventSourceArn: !Ref TableStreamArn
+      StartingPosition: LATEST
+      BatchSize: 10
+      MaximumBatchingWindowInSeconds: 1
+      MaximumRetryAttempts: 3
+      BisectBatchOnFunctionError: true
+      MaximumRecordAgeInSeconds: 86400
+      FunctionResponseTypes: [ReportBatchItemFailures]
+      DestinationConfig:
+        OnFailure:
+          Destination: !Ref NotifierDlqArn
+      FilterCriteria:
+        Filters:
+          - Pattern: '{"eventName":["INSERT"],"dynamodb":{"NewImage":{"entityType":{"S":["Order"]}}}}'
+          - Pattern: '{"eventName":["MODIFY"],"dynamodb":{"NewImage":{"entityType":{"S":["Order"]},"pendingNotify":{"S":[{"exists":true}]}}}}'
+          # Status changes the customer is emailed about (the handler checks it really changed).
+          - Pattern: '{"eventName":["MODIFY"],"dynamodb":{"NewImage":{"entityType":{"S":["Order"]},"fulfilmentStatus":{"S":["CONFIRMED","READY_FOR_COLLECTION","CANCELLED"]}}}}'
+
+  # ===========================================================================
+  # Cognito app client for the admin portal (public SPA client, Authorization Code + PKCE).
+  # Created here, after CloudFront, because the callback URL is the site's URL.
+  # ===========================================================================
+  AdminAppClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPoolId
+      ClientName: !Sub "${ProjectName}-${Environment}-admin-portal"
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email]
+      SupportedIdentityProviders: [COGNITO]
+      CallbackURLs: !If
+        - IsDev
+        - [!Sub "${SiteUrl}/admin/callback", "http://localhost:5174/admin/callback"]
+        - [!Sub "${SiteUrl}/admin/callback"]
+      LogoutURLs: !If
+        - IsDev
+        - [!Sub "${SiteUrl}/admin/", "http://localhost:5174/admin/"]
+        - [!Sub "${SiteUrl}/admin/"]
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 12
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: hours
+
+  AdminManagedLoginBranding:
+    Type: AWS::Cognito::ManagedLoginBranding
+    Properties:
+      UserPoolId: !Ref UserPoolId
+      ClientId: !Ref AdminAppClient
+      # Default Cognito styling for now; a branded style can be added in Phase 3.
+      UseCognitoProvidedValues: true
+
+  # ===========================================================================
+  # HTTP API routes, integrations, authorizer and stage.
+  # ===========================================================================
+  AdminJwtAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref HttpApiId
+      Name: cognito-admin
+      AuthorizerType: JWT
+      IdentitySource: [$request.header.Authorization]
+      JwtConfiguration:
+        Issuer: !Ref IssuerUrl
+        # Access tokens carry client_id, which the HTTP API JWT authorizer checks against Audience.
+        Audience: [!Ref AdminAppClient]
+
+  CatalogueIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApiId
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt CatalogueFunction.Arn
+      PayloadFormatVersion: "2.0"
+      TimeoutInMillis: 10000
+  CreateOrderIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApiId
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt CreateOrderFunction.Arn
+      PayloadFormatVersion: "2.0"
+      TimeoutInMillis: 10000
+  AdminApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApiId
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt AdminApiFunction.Arn
+      PayloadFormatVersion: "2.0"
+      TimeoutInMillis: 15000
+  AdminExportIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApiId
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt AdminExportFunction.Arn
+      PayloadFormatVersion: "2.0"
+      TimeoutInMillis: 20000
+
+  CatalogueRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApiId
+      RouteKey: GET /api/catalogue
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${CatalogueIntegration}"
+  CreateOrderRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApiId
+      RouteKey: POST /api/orders
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${CreateOrderIntegration}"
+  AdminApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApiId
+      RouteKey: ANY /api/admin/{proxy+}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminJwtAuthorizer
+      Target: !Sub "integrations/${AdminApiIntegration}"
+  AdminExportRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApiId
+      RouteKey: GET /api/admin/exports/{proxy+}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AdminJwtAuthorizer
+      Target: !Sub "integrations/${AdminExportIntegration}"
+
+  CataloguePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CatalogueFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApiId}/*/GET/api/catalogue"
+  CreateOrderPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CreateOrderFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApiId}/*/POST/api/orders"
+  AdminApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AdminApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApiId}/*/*/api/admin/*"
+  AdminExportPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AdminExportFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApiId}/*/GET/api/admin/exports/*"
+
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    # Route-level throttling refers to routes by key, so the routes must exist first.
+    DependsOn: [CatalogueRoute, CreateOrderRoute, AdminApiRoute, AdminExportRoute]
+    Properties:
+      ApiId: !Ref HttpApiId
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingRateLimit: 20
+        ThrottlingBurstLimit: 40
+        DetailedMetricsEnabled: false
+      RouteSettings:
+        POST /api/orders:
+          ThrottlingRateLimit: 1
+          ThrottlingBurstLimit: 5
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        # No query strings, headers, bodies or IPs (the source IP is CloudFront's anyway).
+        Format: '{"requestId":"$context.requestId","time":"$context.requestTime","routeKey":"$context.routeKey","status":"$context.status","latencyMs":"$context.responseLatency","integrationStatus":"$context.integrationStatus","integrationError":"$context.integrationErrorMessage","authError":"$context.authorizer.error"}'
+
+Outputs:
+  AdminAppClientId:
+    Value: !Ref AdminAppClient
+  CatalogueFunctionName:
+    Value: !Ref CatalogueFunction
+  CreateOrderFunctionName:
+    Value: !Ref CreateOrderFunction
+  AdminApiFunctionName:
+    Value: !Ref AdminApiFunction
+  AdminExportFunctionName:
+    Value: !Ref AdminExportFunction
+  NotifierFunctionName:
+    Value: !Ref NotifierFunction

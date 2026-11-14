@@ -1,0 +1,20 @@
+{
+  "_comment": "Copy to dev.json (git-ignored) and fill in. Values here are placeholders.",
+  "Environment": "dev",
+  "ProjectName": "kvc",
+  "BusinessDisplayName": "Example Cake Co",
+  "BakerName": "Sam",
+  "AdminEmail": "admin-test@example.com",
+  "SecondAdminEmail": "",
+  "InternalNotificationEmails": "operator@example.com",
+  "OpsAlertEmail": "operator@example.com",
+  "CognitoDomainPrefix": "kvc-dev-CHANGE-ME",
+  "LogRetentionDays": "7",
+  "CreateOrderReservedConcurrency": "0",
+  "DomainName": "",
+  "HostedZoneId": "",
+  "EnableWaf": "false",
+  "CustomerEmailEnabled": "false",
+  "SesFromAddress": "",
+  "MonthlyBudgetUsd": "5"
+}

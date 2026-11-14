@@ -1,0 +1,14 @@
+# cfn-lint configuration for this repository.
+# Run from this folder: cfn-lint   (or scripts/validate.sh from the repo root)
+templates:
+  - bootstrap.yaml
+  - main.yaml
+  - github-deploy-role.yaml
+  - dns.yaml
+  - nested/*.yaml
+regions:
+  - eu-west-2
+ignore_checks:
+  # W3002: nested TemplateURLs are local paths that `aws cloudformation package`
+  # uploads and rewrites. That is the intended workflow, not a mistake.
+  - W3002

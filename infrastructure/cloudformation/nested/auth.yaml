@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Administrator authentication. Cognito user pool with self sign-up
+  disabled, required MFA, an `admins` group, the admin user and an optional second admin. The app client is
+  created later (backend stack) because its callback URL needs the CloudFront domain.
+
+Parameters:
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  BusinessDisplayName:
+    Type: String
+  AdminEmail:
+    Type: String
+    Description: Email address of the administrator (Cognito sends the temporary password here).
+  SecondAdminEmail:
+    Type: String
+    Default: ""
+    Description: Optional second administrator. Leave empty for none.
+  CognitoDomainPrefix:
+    Type: String
+    AllowedPattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+    Description: >-
+      Globally unique prefix for the hosted sign-in page,
+      <prefix>.auth.<region>.amazoncognito.com. Must not contain "aws", "amazon" or "cognito".
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+  HasSecondAdmin: !Not [!Equals [!Ref SecondAdminEmail, ""]]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Sub "${ProjectName}-${Environment}-admins"
+      # Essentials: modern managed login; first 10,000 MAU free (we have one user).
+      UserPoolTier: ESSENTIALS
+      DeletionProtection: !If [IsProd, ACTIVE, INACTIVE]
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailSubject: !Sub "Your ${BusinessDisplayName} admin account"
+          EmailMessage: >-
+            Hello, an administrator account has been created for you.
+            Username: {username} Temporary password: {####}
+            You will be asked to choose a new password and set up an authenticator app at first sign-in.
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      MfaConfiguration: "ON"
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 3
+          PasswordHistorySize: 5
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      EmailConfiguration:
+        # Cognito's built-in sender is enough for one admin (limited daily volume).
+        EmailSendingAccount: COGNITO_DEFAULT
+      UserPoolTags:
+        Project: !Join ["", !Split [" ", !Ref BusinessDisplayName]]
+        Environment: !Ref Environment
+
+  AdminsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId: !Ref UserPool
+      GroupName: admins
+      Description: Administrators of the ordering system. Admin API routes require this group.
+
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: !Ref AdminEmail
+      DesiredDeliveryMediums:
+        - EMAIL
+      UserAttributes:
+        - Name: email
+          Value: !Ref AdminEmail
+        - Name: email_verified
+          Value: "true"
+
+  AdminUserInGroup:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Properties:
+      UserPoolId: !Ref UserPool
+      GroupName: !Ref AdminsGroup
+      Username: !Ref AdminUser
+
+  # Removing or changing SecondAdminEmail deletes (or replaces) this user on the next deploy.
+  SecondAdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Condition: HasSecondAdmin
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: !Ref SecondAdminEmail
+      DesiredDeliveryMediums:
+        - EMAIL
+      UserAttributes:
+        - Name: email
+          Value: !Ref SecondAdminEmail
+        - Name: email_verified
+          Value: "true"
+
+  SecondAdminUserInGroup:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Condition: HasSecondAdmin
+    Properties:
+      UserPoolId: !Ref UserPool
+      GroupName: !Ref AdminsGroup
+      Username: !Ref SecondAdminUser
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref UserPool
+      Domain: !Ref CognitoDomainPrefix
+      # 2 = the newer "managed login" pages (needs a branding style; see backend stack).
+      ManagedLoginVersion: 2
+
+Outputs:
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolArn:
+    Value: !GetAtt UserPool.Arn
+  IssuerUrl:
+    Value: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+  CognitoDomain:
+    Description: Hosted sign-in domain (no scheme).
+    Value: !Sub "${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"

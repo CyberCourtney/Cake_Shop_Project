@@ -1,0 +1,146 @@
+name: Deploy
+
+# Manual only. Runs scripts/deploy.sh in GitHub's runner using short-lived AWS credentials
+# from the OIDC deploy role (infrastructure/cloudformation/github-deploy-role.yaml).
+#   execute=false (default): build and show the change set only - nothing is applied.
+#   execute=true:            apply the change set.
+# Setup and safety notes: docs/deployment.md#github-actions
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        type: choice
+        options: [dev, prod]
+        default: dev
+      execute:
+        description: Apply the change set (false = review only)
+        type: boolean
+        default: false
+      use_domain:
+        description: Use the custom domain from the parameters (false = the cloudfront.net address)
+        type: boolean
+        default: true
+      rotate_origin_secret:
+        description: Rotate the CloudFront-to-API origin secret
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write # needed to request the OIDC token for AWS
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    # The deploy role only trusts jobs in these GitHub environments. Give "prod"
+    # required reviewers in Settings > Environments so prod deploys need approval.
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install cfn-lint
+        run: pip install "cfn-lint==1.59.0"
+
+      # Prints only the non-secret identity claims (never the token) so a trust-policy
+      # mismatch with infrastructure/cloudformation/github-deploy-role.yaml is easy to spot.
+      - name: Show OIDC identity claims
+        run: |
+          token=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          payload=$(cut -d. -f2 <<<"$token" | tr '_-' '/+')
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="$payload="; done
+          base64 -d <<<"$payload" | jq '{sub, aud, iss, repository, environment, ref}'
+
+      - name: Configure AWS credentials (OIDC, no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: github-${{ github.run_id }}
+
+      - name: Write parameter file from the environment secret
+        env:
+          KVC_PARAMETERS_JSON: ${{ secrets.KVC_PARAMETERS_JSON }}
+          TARGET_ENV: ${{ inputs.environment }}
+          USE_DOMAIN: ${{ inputs.use_domain }}
+        run: |
+          test -n "$KVC_PARAMETERS_JSON" || { echo "::error::Secret KVC_PARAMETERS_JSON is not set for the '$TARGET_ENV' environment"; exit 1; }
+          umask 077
+          printf '%s' "$KVC_PARAMETERS_JSON" > "infrastructure/cloudformation/parameters/$TARGET_ENV.json"
+          jq -e . "infrastructure/cloudformation/parameters/$TARGET_ENV.json" > /dev/null
+          # use_domain=false deploys on the *.cloudfront.net address, e.g. before DNS is live.
+          if [ "$USE_DOMAIN" = "false" ]; then
+            f="infrastructure/cloudformation/parameters/$TARGET_ENV.json"
+            jq '.DomainName = "" | .HostedZoneId = "" | .SesFromAddress = ""' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+            echo "Custom domain switched off for this run."
+          fi
+
+      - name: Deploy
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+          EXECUTE: ${{ inputs.execute }}
+          ROTATE: ${{ inputs.rotate_origin_secret }}
+        run: |
+          args=("$TARGET_ENV")
+          if [ "$EXECUTE" = "true" ]; then args+=(--execute --yes); fi
+          if [ "$ROTATE" = "true" ]; then args+=(--rotate-origin-secret); fi
+          scripts/deploy.sh "${args[@]}"
+
+      - name: Status
+        if: inputs.execute
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+        # The status output lists subscriber emails; mask them in the public log.
+        run: scripts/status.sh "$TARGET_ENV" | sed -E 's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/<email>/g'
+
+      # Loads the live site through CloudFront and checks the pages, SPA routing and
+      # security headers, so "deployed" also means "reachable".
+      - name: Smoke test the site
+        if: inputs.execute
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          # Stack and shop names come from the parameter file written above (the secret).
+          params="infrastructure/cloudformation/parameters/$TARGET_ENV.json"
+          stack="$(jq -r .ProjectName "$params")-$TARGET_ENV"
+          shop_name="$(jq -r .BusinessDisplayName "$params")"
+          url=$(aws cloudformation describe-stacks --stack-name "$stack" \
+            --query "Stacks[0].Outputs[?OutputKey=='SiteUrl'].OutputValue | [0]" --output text)
+          echo "Site: $url"
+          fail=0
+          check() { # check <path> <expected status> <text the body must contain>
+            code=$(curl -sS -o body.txt -w '%{http_code}' --retry 5 --retry-delay 10 --retry-all-errors "$url$1")
+            if [ "$code" = "$2" ] && grep -qF -- "$3" body.txt; then echo "OK   $1 -> $code"
+            else echo "FAIL $1 -> $code (wanted $2 containing '$3')"; fail=1; fi
+          }
+          check /                 200 "$shop_name"
+          check /order/some-deep-link 200 "$shop_name"
+          check /admin/           200 "Admin portal"
+          check /admin/config.json 200 "clientId"
+          check /api/catalogue    200 '"products"'
+          headers=$(curl -sSI "$url/")
+          for h in content-security-policy strict-transport-security x-content-type-options; do
+            if grep -qi "^$h:" <<<"$headers"; then echo "OK   header $h"; else echo "FAIL header $h missing"; fail=1; fi
+          done
+          rm -f body.txt
+          exit $fail
+
+      - name: Remove parameter file
+        if: always()
+        run: rm -f "infrastructure/cloudformation/parameters/${{ inputs.environment }}.json"

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  infrastructure:
+    name: Validate CloudFormation and scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: pip install "cfn-lint==1.59.0" "shellcheck-py==0.11.0.1"
+      - name: cfn-lint
+        run: scripts/validate.sh
+      - name: shellcheck
+        run: shellcheck -x -P SCRIPTDIR scripts/*.sh scripts/lib/*.sh
+
+  application:
+    name: Typecheck, test and build the apps
+    runs-on: ubuntu-latest
+    # DynamoDB Local runs beside the job so the integration tests use real DynamoDB
+    # behaviour (conditions, transactions) without touching AWS.
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:2.6.0
+        ports: ["8000:8000"]
+    env:
+      DYNAMODB_ENDPOINT: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

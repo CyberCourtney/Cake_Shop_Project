@@ -1,0 +1,11 @@
+{
+  "name": "@kvc/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Code used by both the browser and the Lambdas: validation schemas, pricing, statuses, order references.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": { "test": "vitest run" },
+  "dependencies": { "zod": "^4.1.0" }
+}

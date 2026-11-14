@@ -1,0 +1,207 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Monitoring. CloudWatch alarms (kept within the 10 always-free
+  alarms) that email the ops topic. The account cost budget lives in bootstrap.yaml.
+
+Parameters:
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  OpsTopicArn:
+    Type: String
+  NotifierDlqName:
+    Type: String
+  OrderTopicName:
+    Type: String
+  HttpApiId:
+    Type: String
+  CatalogueFunctionName:
+    Type: String
+  CreateOrderFunctionName:
+    Type: String
+  AdminApiFunctionName:
+    Type: String
+  AdminExportFunctionName:
+    Type: String
+  NotifierFunctionName:
+    Type: String
+
+Conditions:
+  # CloudWatch's always-free allowance is 10 alarms per account. prod gets 9 and dev gets
+  # only the DLQ alarm, so the two environments together stay at 10 (no alarm charges).
+  IsProd: !Equals [!Ref Environment, prod]
+
+Resources:
+  # 1. Any notification that failed every retry is in the DLQ. This is the most
+  #    important alarm: it means an order needs manual follow-up.
+  NotifierDlqNotEmptyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-notifier-dlq-not-empty"
+      AlarmDescription: >-
+        An order notification failed after all retries. Check the admin portal's
+        "Notification problems" filter and docs/operations-guide.md.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !Ref NotifierDlqName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]
+      OKActions: [!Ref OpsTopicArn]
+
+  # 2-6. Errors in each function.
+  CatalogueErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-public-catalogue-errors"
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref CatalogueFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]
+  CreateOrderErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-public-create-order-errors"
+      AlarmDescription: Order submissions are failing. Customers may be unable to order.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref CreateOrderFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]
+  AdminApiErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-admin-api-errors"
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AdminApiFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]
+  AdminExportErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-admin-export-errors"
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AdminExportFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]
+  NotifierErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-notifier-errors"
+      AlarmDescription: The notifier is failing (it will retry; the DLQ alarm fires if retries run out).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref NotifierFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]
+
+  # 7. Throttled order submissions - either a traffic spike or abuse.
+  CreateOrderThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-public-create-order-throttles"
+      AlarmDescription: Order submissions are being throttled (busy period or abuse).
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref CreateOrderFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]
+
+  # 8. API 5xx responses (sustained).
+  Api5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-api-5xx"
+      Namespace: AWS/ApiGateway
+      MetricName: 5xx
+      Dimensions:
+        - Name: ApiId
+          Value: !Ref HttpApiId
+        - Name: Stage
+          Value: $default
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]
+
+  # 9. SNS could not deliver an internal notification (e.g. a bounced address).
+  OrderTopicDeliveryFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Environment}-order-topic-delivery-failures"
+      Namespace: AWS/SNS
+      MetricName: NumberOfNotificationsFailed
+      Dimensions:
+        - Name: TopicName
+          Value: !Ref OrderTopicName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref OpsTopicArn]

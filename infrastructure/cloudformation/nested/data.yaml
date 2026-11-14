@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Data layer. The single DynamoDB table that is the source of truth
+  for products, settings, collection dates and orders (see docs/data-model.md).
+
+Parameters:
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Resources:
+  MainTable:
+    Type: AWS::DynamoDB::Table
+    # Customer data must never be destroyed by a stack delete or a replacing update.
+    # After `delete-stack`, the table remains and is removed deliberately (docs/deployment.md).
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "${ProjectName}-${Environment}-main"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        # Sparse index: only Order items carry gsi1pk/gsi1sk.
+        # gsi1pk = SEASON#<seasonId>, gsi1sk = <collectionDate>#<orderRef>
+        - IndexName: gsi1
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        # Feeds the notifier Lambda (order-first, notify-second).
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+        RecoveryPeriodInDays: 35
+      # Encryption at rest uses the AWS-owned key (DynamoDB default, no cost).
+      DeletionProtectionEnabled: !If [IsProd, true, false]
+      Tags:
+        - Key: DataClassification
+          Value: personal
+
+Outputs:
+  TableName:
+    Value: !Ref MainTable
+  TableArn:
+    Value: !GetAtt MainTable.Arn
+  TableStreamArn:
+    Value: !GetAtt MainTable.StreamArn

@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  The HTTP API itself, with no routes yet. It is a separate, tiny stack
+  to break a dependency cycle: CloudFront needs the API's domain, the Cognito app client
+  needs CloudFront's domain, and the API's JWT authorizer needs the app client. Creating
+  the bare API first lets CloudFront, then the app client, then the routes be created in
+  order (see infrastructure/cloudformation/README.md).
+
+Parameters:
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  BusinessDisplayName:
+    Type: String
+
+Resources:
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${ProjectName}-${Environment}-api"
+      ProtocolType: HTTP
+      Description: !Sub "${BusinessDisplayName} public and admin API (served under /api/* via CloudFront)."
+      # No CORS: the browser only ever calls the API through the same CloudFront domain.
+      Tags:
+        Project: !Join ["", !Split [" ", !Ref BusinessDisplayName]]
+        Environment: !Ref Environment
+
+Outputs:
+  HttpApiId:
+    Value: !Ref HttpApi
+  HttpApiDomain:
+    Description: execute-api hostname used as the CloudFront origin.
+    Value: !Sub "${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}"
